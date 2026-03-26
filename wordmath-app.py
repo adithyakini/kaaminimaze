@@ -36,27 +36,56 @@ def play_sound(file):
 
 # ---------------- AI QUESTION ----------------
 @st.cache_data(ttl=300)
+import re
+import json
+
+@st.cache_data(ttl=300)
 def generate_question(level):
     prompt = f"""
-    Create a FUN math + word puzzle for Grade {level}.
+    Generate a FUN math + word puzzle for Grade {level}.
 
-    Return JSON:
+    STRICT RULES:
+    - Return ONLY valid JSON
+    - NO markdown
+    - NO explanation text
+    - NO backticks
+
+    Format:
     {{
-        "math_question": "...",
+        "math_question": "string",
         "math_answer": number,
-        "word_puzzle": "_ A _",
-        "word_answer": "...",
-        "hint": "..."
+        "word_puzzle": "string",
+        "word_answer": "string",
+        "hint": "string"
     }}
     """
 
-    res = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.7
-    )
+    try:
+        res = client.chat.completions.create(
+            model="gpt-5.3",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.6
+        )
 
-    return json.loads(res.choices[0].message.content)
+        raw = res.choices[0].message.content.strip()
+
+        # 🧹 CLEAN RESPONSE (handles most failures)
+        raw = re.sub(r"```json|```", "", raw).strip()
+
+        # Try parsing
+        data = json.loads(raw)
+
+        return data
+
+    except Exception as e:
+        # ⚠️ FALLBACK (app NEVER breaks)
+        return {
+            "math_question": "What is 3 + 4?",
+            "math_answer": 7,
+            "word_puzzle": "_ A T",
+            "word_answer": "CAT",
+            "hint": "Add the numbers carefully!"
+        }
 
 # ---------------- LOAD QUESTION ----------------
 def load_question():
