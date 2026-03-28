@@ -20,19 +20,24 @@ CHAPTERS = [
     "Fractions of objects"
 ]
 
-MAZE_LENGTH = 5
+GRID_SIZE = 3
+GOAL = [1, 1]
 
 # -----------------------
-# STATE INIT
+# INIT STATE
 # -----------------------
 def init():
     defaults = {
         "chapter": None,
-        "step": 0,
+        "player_pos": [0, 0],
+        "visited": {(0, 0)},
+        "lives": 3,
+        "score": 0,
+        "difficulty": 1,
         "question": None,
         "answer": None,
-        "lives": 3,
-        "score": 0
+        "awaiting_answer": False,
+        "next_pos": None
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -41,47 +46,113 @@ def init():
 init()
 
 # -----------------------
-# AI: SAFE JSON GENERATION
+# AI FUNCTIONS
 # -----------------------
 def generate_question(chapter):
-    prompt = f"""
-    Generate ONE simple math question for a child based on: {chapter}.
+    level = round(st.session_state.difficulty)
 
-    Return STRICT JSON ONLY:
+    prompt = f"""
+    Generate ONE math question.
+
+    Topic: {chapter}
+    Difficulty: {level} (1 easy → 5 hard)
+
+    Return JSON:
     {{
-      "question": "text",
-      "answer": "number or short text"
+      "question": "...",
+      "answer": "..."
     }}
     """
 
-    response = client.chat.completions.create(
+    res = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
         response_format={"type": "json_object"}
     )
 
-    data = json.loads(response.choices[0].message.content)
+    data = json.loads(res.choices[0].message.content)
     return data["question"], str(data["answer"])
 
 
-def generate_hint(question, answer):
-    prompt = f"""
-    Question: {question}
-    Answer: {answer}
-
-    Give a very short hint for a child. Do NOT reveal the answer.
-    """
-
-    response = client.chat.completions.create(
+def generate_hint(q, a):
+    res = client.chat.completions.create(
         model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}]
+        messages=[{
+            "role": "user",
+            "content": f"Question: {q}\nAnswer: {a}\nGive a short hint for a child."
+        }]
     )
+    return res.choices[0].message.content
 
-    return response.choices[0].message.content
 
+def adjust_difficulty(correct):
+    if correct:
+        st.session_state.difficulty += 0.2
+    else:
+        st.session_state.difficulty = max(1, st.session_state.difficulty - 0.3)
 
 # -----------------------
-# UI HEADER
+# MAZE DRAW
+# -----------------------
+def draw_maze():
+    st.markdown("### 🗺️ Maze")
+
+    for i in range(GRID_SIZE):
+        cols = st.columns(GRID_SIZE)
+        for j in range(GRID_SIZE):
+
+            is_player = [i, j] == st.session_state.player_pos
+            is_goal = [i, j] == GOAL
+            visited = (i, j) in st.session_state.visited
+
+            if not visited:
+                color = "#111"
+                content = ""
+            else:
+                if is_player:
+                    color = "#4CAF50"
+                    content = "🧙"
+                elif is_goal:
+                    color = "#FF5722"
+                    content = "🔥"
+                else:
+                    color = "#2196F3"
+                    content = ""
+
+            cols[j].markdown(f"""
+                <div style="
+                    height:80px;
+                    background:{color};
+                    border-radius:10px;
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                    font-size:28px;
+                ">
+                    {content}
+                </div>
+            """, unsafe_allow_html=True)
+
+# -----------------------
+# MOVES
+# -----------------------
+def get_moves():
+    r, c = st.session_state.player_pos
+    moves = []
+
+    if r > 0:
+        moves.append(("⬆️ Up", [r-1, c]))
+    if r < GRID_SIZE - 1:
+        moves.append(("⬇️ Down", [r+1, c]))
+    if c > 0:
+        moves.append(("⬅️ Left", [r, c-1]))
+    if c < GRID_SIZE - 1:
+        moves.append(("➡️ Right", [r, c+1]))
+
+    return moves
+
+# -----------------------
+# UI
 # -----------------------
 st.title("🧩 Math Maze: Exorcism Quest")
 
@@ -90,19 +161,10 @@ st.title("🧩 Math Maze: Exorcism Quest")
 # -----------------------
 if not st.session_state.chapter:
     st.subheader("Choose your Chapter")
-
-    chapter = st.selectbox("Select Topic", CHAPTERS)
+    ch = st.selectbox("Select Topic", CHAPTERS)
 
     if st.button("Enter Maze"):
-        st.session_state.chapter = chapter
-        st.session_state.step = 0
-        st.session_state.lives = 3
-        st.session_state.score = 0
-
-        q, a = generate_question(chapter)
-        st.session_state.question = q
-        st.session_state.answer = a
-
+        st.session_state.chapter = ch
         st.rerun()
 
     st.stop()
@@ -110,10 +172,10 @@ if not st.session_state.chapter:
 # -----------------------
 # HUD
 # -----------------------
-col1, col2, col3 = st.columns(3)
-col1.metric("❤️ Lives", st.session_state.lives)
-col2.metric("⭐ Score", st.session_state.score)
-col3.metric("🧭 Room", f"{st.session_state.step}/{MAZE_LENGTH}")
+c1, c2, c3 = st.columns(3)
+c1.metric("❤️ Lives", st.session_state.lives)
+c2.metric("⭐ Score", st.session_state.score)
+c3.metric("🧠 Difficulty", round(st.session_state.difficulty, 1))
 
 st.divider()
 
@@ -121,71 +183,84 @@ st.divider()
 # GAME OVER
 # -----------------------
 if st.session_state.lives <= 0:
-    st.error("💀 The spirit consumed you... Game Over!")
+    st.error("💀 Game Over")
 
-    if st.button("Restart Game"):
+    if st.button("Restart"):
         st.session_state.clear()
         st.rerun()
 
     st.stop()
 
 # -----------------------
-# BOSS ROOM
+# DRAW MAZE
 # -----------------------
-if st.session_state.step >= MAZE_LENGTH:
-    st.success("🔥 You reached the center of the maze!")
+draw_maze()
 
-    st.markdown("## 🕯️ Final Exorcism Question")
+st.divider()
+
+# -----------------------
+# WIN
+# -----------------------
+if st.session_state.player_pos == GOAL:
+    st.success("🔥 FINAL ROOM")
 
     q, a = generate_question(st.session_state.chapter)
-
     st.write(q)
-    user = st.text_input("Your Answer", key="boss")
+
+    user = st.text_input("Final Answer")
 
     if st.button("Perform Exorcism"):
         if user.strip() == a.strip():
-            st.success("✨ EXORCISM COMPLETE! You win!")
+            st.success("✨ YOU WIN!")
         else:
-            st.error("❌ The ritual failed... try again!")
+            st.error("❌ Failed!")
 
     st.stop()
 
 # -----------------------
-# NORMAL ROOM
+# MOVEMENT
 # -----------------------
-st.markdown(f"## 🚪 Room {st.session_state.step + 1}")
-st.write(st.session_state.question)
+st.markdown("## 🚪 Choose Direction")
 
-user_answer = st.text_input("Your Answer", key=f"input_{st.session_state.step}")
-
-colA, colB = st.columns(2)
-
-with colA:
-    if st.button("Submit Answer"):
-        correct = st.session_state.answer
-
-        if user_answer.strip() == correct.strip():
-            st.success("✅ Door unlocked!")
-            st.session_state.score += 10
-            st.session_state.step += 1
-
-            q, a = generate_question(st.session_state.chapter)
-            st.session_state.question = q
-            st.session_state.answer = a
-
-            st.rerun()
-
-        else:
-            st.error("❌ Wrong! The spirit attacks!")
-            st.session_state.lives -= 1
-
-            hint = generate_hint(st.session_state.question, correct)
-            st.info(f"💡 Hint: {hint}")
-
-with colB:
-    if st.button("Skip (no points)"):
-        st.session_state.step += 1
+for label, pos in get_moves():
+    if st.button(label):
+        st.session_state.next_pos = pos
         q, a = generate_question(st.session_state.chapter)
         st.session_state.question = q
         st.session_state.answer = a
+        st.session_state.awaiting_answer = True
         st.rerun()
+
+# -----------------------
+# QUESTION GATE
+# -----------------------
+if st.session_state.awaiting_answer:
+    st.markdown("## 🧠 Solve to Move")
+
+    st.write(st.session_state.question)
+    user = st.text_input("Your Answer")
+
+    if st.button("Submit"):
+        correct = user.strip() == st.session_state.answer.strip()
+
+        adjust_difficulty(correct)
+
+        if correct:
+            st.success("🚪 Unlocked!")
+            st.balloons()
+
+            st.session_state.player_pos = st.session_state.next_pos
+            st.session_state.visited.add(tuple(st.session_state.player_pos))
+
+            st.session_state.score += int(10 * st.session_state.difficulty)
+            st.session_state.awaiting_answer = False
+            st.rerun()
+        else:
+            st.error("👻 Wrong!")
+            st.session_state.lives -= 1
+
+            hint = generate_hint(
+                st.session_state.question,
+                st.session_state.answer
+            )
+            st.info(f"💡 {hint}")
