@@ -11,7 +11,7 @@ st.set_page_config(page_title="Math Word Maze", layout="centered")
 
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-GRID_SIZE = 7   # 🔥 BIGGER MAZE
+GRID_SIZE = 7
 GOAL = [3, 3]
 
 WORDS = [
@@ -20,6 +20,24 @@ WORDS = [
     "WATER", "LIGHT", "EARTH", "BRIDGE",
     "FLOWER", "GARDEN", "MARKET"
 ]
+
+WORD_RIDDLES = {
+    "APPLE": "I am a fruit that keeps the doctor away 🍎",
+    "GRAPE": "I grow in bunches and can become wine 🍇",
+    "MANGO": "I am the king of fruits in India 🥭",
+    "PEACH": "I am soft, sweet, and fuzzy 🍑",
+    "HOUSE": "You live inside me 🏠",
+    "PLANT": "I grow in soil and need sunlight 🌱",
+    "TRAIN": "I run on tracks and carry people 🚆",
+    "SNAKE": "I slither and hiss 🐍",
+    "WATER": "You drink me every day 💧",
+    "LIGHT": "I help you see in the dark 💡",
+    "EARTH": "You live on me 🌍",
+    "BRIDGE": "I connect two places 🌉",
+    "FLOWER": "I bloom and smell nice 🌸",
+    "GARDEN": "A place full of plants 🌿",
+    "MARKET": "You buy things here 🛒"
+}
 
 CHAPTERS = [
     "Place Value",
@@ -42,6 +60,7 @@ def init():
         "current_word": "",
         "letter_grid": None,
         "valid_words": [],
+        "target_word": None,
         "awaiting": False,
         "question": None,
         "answer": None,
@@ -62,7 +81,7 @@ def generate_letter_maze():
     grid = [["" for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
     placed_words = []
 
-    for word in random.sample(WORDS, 4):  # more words
+    for word in random.sample(WORDS, 4):
         for _ in range(200):
             r = random.randint(0, GRID_SIZE - 1)
             c = random.randint(0, GRID_SIZE - 1)
@@ -96,6 +115,7 @@ if st.session_state.letter_grid is None:
     grid, words = generate_letter_maze()
     st.session_state.letter_grid = grid
     st.session_state.valid_words = words
+    st.session_state.target_word = random.choice(words)
 
 # -----------------------
 # AI
@@ -232,12 +252,17 @@ if st.session_state.lives <= 0:
         st.rerun()
     st.stop()
 
+# RIDDLE
+st.markdown("## 🧩 Riddle Hint")
+riddle = WORD_RIDDLES.get(st.session_state.target_word, "Find the hidden word!")
+st.info(f"💡 {riddle}")
+st.caption(f"Word length: {len(st.session_state.target_word)}")
+
 # DRAW
 draw_maze()
 
 # WORD DISPLAY
-st.markdown(f"### 🧩 Word: `{st.session_state.current_word}`")
-st.caption(f"Path length: {len(st.session_state.path)}")
+st.markdown(f"### 🔤 Current Word: `{st.session_state.current_word}`")
 
 # CONTROLS
 c1, c2, c3 = st.columns(3)
@@ -264,14 +289,15 @@ with c3:
         grid, words = generate_letter_maze()
         st.session_state.letter_grid = grid
         st.session_state.valid_words = words
+        st.session_state.target_word = random.choice(words)
         st.session_state.player = [0, 0]
         st.session_state.path = []
         st.session_state.current_word = ""
         st.rerun()
 
 # WORD CHECK
-if st.session_state.current_word in st.session_state.valid_words:
-    st.success(f"🎉 Found: {st.session_state.current_word}")
+if st.session_state.current_word == st.session_state.target_word:
+    st.success(f"🎉 Solved: {st.session_state.target_word}")
 
     if not st.session_state.awaiting:
         q, a = generate_question(st.session_state.chapter)
@@ -279,8 +305,8 @@ if st.session_state.current_word in st.session_state.valid_words:
         st.session_state.answer = a
         st.session_state.awaiting = True
 
-elif len(st.session_state.current_word) > 8:
-    st.warning("❌ Invalid path")
+elif len(st.session_state.current_word) > len(st.session_state.target_word):
+    st.warning("❌ Not matching riddle. Reset.")
     st.session_state.path = []
     st.session_state.current_word = ""
 
@@ -302,6 +328,8 @@ if st.session_state.awaiting:
             st.session_state.path = []
             st.session_state.current_word = ""
             st.session_state.awaiting = False
+
+            st.session_state.target_word = random.choice(st.session_state.valid_words)
 
             move_enemy()
 
