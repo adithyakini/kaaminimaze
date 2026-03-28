@@ -1,10 +1,12 @@
 import streamlit as st
-import random
-import openai
+from openai import OpenAI
+import json
 
 # -----------------------
 # CONFIG
 # -----------------------
+st.set_page_config(page_title="Math Maze", layout="centered")
+
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 CHAPTERS = [
@@ -18,62 +20,68 @@ CHAPTERS = [
     "Fractions of objects"
 ]
 
-MAZE_LENGTH = 5  # rooms before boss
+MAZE_LENGTH = 5
 
 # -----------------------
-# STATE
+# STATE INIT
 # -----------------------
-if "chapter" not in st.session_state:
-    st.session_state.chapter = None
+def init():
+    defaults = {
+        "chapter": None,
+        "step": 0,
+        "question": None,
+        "answer": None,
+        "lives": 3,
+        "score": 0
+    }
+    for k, v in defaults.items():
+        if k not in st.session_state:
+            st.session_state[k] = v
 
-if "step" not in st.session_state:
-    st.session_state.step = 0
-
-if "question" not in st.session_state:
-    st.session_state.question = None
-
-if "answer" not in st.session_state:
-    st.session_state.answer = None
-
-if "lives" not in st.session_state:
-    st.session_state.lives = 3
-
-if "score" not in st.session_state:
-    st.session_state.score = 0
-
+init()
 
 # -----------------------
-# AI QUESTION GENERATOR
+# AI: SAFE JSON GENERATION
 # -----------------------
 def generate_question(chapter):
     prompt = f"""
-    Generate a simple math question for a child based on this topic: {chapter}.
-    Also provide the correct answer.
+    Generate ONE simple math question for a child based on: {chapter}.
 
-    Format:
-    Question: ...
-    Answer: ...
+    Return STRICT JSON ONLY:
+    {{
+      "question": "text",
+      "answer": "number or short text"
+    }}
     """
 
-    response = openai.ChatCompletion.create(
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        response_format={"type": "json_object"}
+    )
+
+    data = json.loads(response.choices[0].message.content)
+    return data["question"], str(data["answer"])
+
+
+def generate_hint(question, answer):
+    prompt = f"""
+    Question: {question}
+    Answer: {answer}
+
+    Give a very short hint for a child. Do NOT reveal the answer.
+    """
+
+    response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}]
     )
 
-    text = response.choices[0].message.content
-
-    try:
-        q = text.split("Question:")[1].split("Answer:")[0].strip()
-        a = text.split("Answer:")[1].strip()
-    except:
-        q = "2 + 2"
-        a = "4"
-
-    return q, a
+    return response.choices[0].message.content
 
 
 # -----------------------
-# UI
+# UI HEADER
 # -----------------------
 st.title("🧩 Math Maze: Exorcism Quest")
 
@@ -95,6 +103,8 @@ if not st.session_state.chapter:
         st.session_state.question = q
         st.session_state.answer = a
 
+        st.rerun()
+
     st.stop()
 
 # -----------------------
@@ -113,8 +123,9 @@ st.divider()
 if st.session_state.lives <= 0:
     st.error("💀 The spirit consumed you... Game Over!")
 
-    if st.button("Restart"):
+    if st.button("Restart Game"):
         st.session_state.clear()
+        st.rerun()
 
     st.stop()
 
@@ -122,14 +133,14 @@ if st.session_state.lives <= 0:
 # BOSS ROOM
 # -----------------------
 if st.session_state.step >= MAZE_LENGTH:
-    st.success("🔥 You reached the center!")
+    st.success("🔥 You reached the center of the maze!")
 
-    st.markdown("## 🕯️ Final Ritual Question")
+    st.markdown("## 🕯️ Final Exorcism Question")
 
     q, a = generate_question(st.session_state.chapter)
 
     st.write(q)
-    user = st.text_input("Your Answer")
+    user = st.text_input("Your Answer", key="boss")
 
     if st.button("Perform Exorcism"):
         if user.strip() == a.strip():
@@ -143,38 +154,38 @@ if st.session_state.step >= MAZE_LENGTH:
 # NORMAL ROOM
 # -----------------------
 st.markdown(f"## 🚪 Room {st.session_state.step + 1}")
-
 st.write(st.session_state.question)
 
-user_answer = st.text_input("Your Answer")
+user_answer = st.text_input("Your Answer", key=f"input_{st.session_state.step}")
 
-if st.button("Submit"):
-    correct = st.session_state.answer
+colA, colB = st.columns(2)
 
-    if user_answer.strip() == correct.strip():
-        st.success("✅ Door unlocked!")
-        st.session_state.score += 10
+with colA:
+    if st.button("Submit Answer"):
+        correct = st.session_state.answer
+
+        if user_answer.strip() == correct.strip():
+            st.success("✅ Door unlocked!")
+            st.session_state.score += 10
+            st.session_state.step += 1
+
+            q, a = generate_question(st.session_state.chapter)
+            st.session_state.question = q
+            st.session_state.answer = a
+
+            st.rerun()
+
+        else:
+            st.error("❌ Wrong! The spirit attacks!")
+            st.session_state.lives -= 1
+
+            hint = generate_hint(st.session_state.question, correct)
+            st.info(f"💡 Hint: {hint}")
+
+with colB:
+    if st.button("Skip (no points)"):
         st.session_state.step += 1
-
         q, a = generate_question(st.session_state.chapter)
         st.session_state.question = q
         st.session_state.answer = a
-
-    else:
-        st.error("❌ Wrong! The spirit attacks!")
-        st.session_state.lives -= 1
-
-        # hint using AI
-        hint_prompt = f"""
-        Question: {st.session_state.question}
-        Correct Answer: {correct}
-
-        Give a small hint for a child.
-        """
-
-        hint = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": hint_prompt}]
-        )
-
-        st.info(hint.choices[0].message.content)
+        st.rerun()
