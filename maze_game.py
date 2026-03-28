@@ -16,66 +16,72 @@ RIDDLES = {
 }
 
 # -----------------------
-# INIT
+# BUILD GRID WITH TRUE PATH
 # -----------------------
-if "initialized" not in st.session_state:
+def build_game():
     grid = [[random.choice(string.ascii_uppercase) for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
 
-    # simple straight path
     path = [(0, 0)]
     r, c = 0, 0
 
-    while len(path) < 60:
-        if r < GRID_SIZE - 1:
-            r += 1
-        elif c < GRID_SIZE - 1:
-            c += 1
-        path.append((r, c))
+    # build guaranteed adjacent path
+    for word in WORDS:
+        for ch in word:
+            grid[r][c] = ch
 
-    # embed words
-    idx = 0
-    for w in WORDS:
-        for ch in w:
-            if idx < len(path):
-                pr, pc = path[idx]
-                grid[pr][pc] = ch
-                idx += 1
+            # move right or down (safe path)
+            if c < GRID_SIZE - 1:
+                c += 1
+            else:
+                r += 1
+
+            path.append((r, c))
+
+    return grid, path
+
+# -----------------------
+# INIT
+# -----------------------
+if "init" not in st.session_state:
+    grid, path = build_game()
 
     st.session_state.grid = grid
     st.session_state.path = path
-    st.session_state.player_index = 0
-    st.session_state.current_word = ""
+    st.session_state.player_step = 0  # index in path
     st.session_state.word_index = 0
+    st.session_state.current_word = ""
     st.session_state.awaiting = False
     st.session_state.lives = 3
-    st.session_state.question = None
-    st.session_state.answer = None
-    st.session_state.initialized = True
+    st.session_state.q = None
+    st.session_state.a = None
+    st.session_state.init = True
 
 # -----------------------
-# MATH (local, no AI)
+# MATH
 # -----------------------
-def generate_question():
+def gen_q():
     a = random.randint(1, 10)
     b = random.randint(1, 10)
     return f"{a} + {b}", str(a + b)
 
 # -----------------------
-# MOVE
+# MOVE (STRICT PATH)
 # -----------------------
-def handle_click(i, j):
-    idx = st.session_state.player_index
+def move(i, j):
+    step = st.session_state.player_step
     path = st.session_state.path
 
-    if idx + 1 >= len(path):
+    # next correct tile ONLY
+    if step + 1 >= len(path):
         return
 
-    next_pos = path[idx + 1]
+    correct_next = path[step + 1]
 
-    if (i, j) != next_pos:
-        return
+    if (i, j) != correct_next:
+        return  # ignore wrong clicks
 
-    st.session_state.player_index += 1
+    # move
+    st.session_state.player_step += 1
 
     letter = st.session_state.grid[i][j]
     st.session_state.current_word += letter
@@ -90,7 +96,7 @@ def handle_click(i, j):
 # -----------------------
 # UI
 # -----------------------
-st.title("🧙 Exorcist Path")
+st.title("🧙 Exorcist Path (Gameplay Mode)")
 
 if st.session_state.lives <= 0:
     st.error("💀 Game Over")
@@ -100,7 +106,7 @@ if st.session_state.lives <= 0:
     st.stop()
 
 if st.session_state.word_index >= len(WORDS):
-    st.success("👻 You reached the Ghost!")
+    st.success("👻 You reached the ghost!")
     st.stop()
 
 target = WORDS[st.session_state.word_index]
@@ -110,9 +116,13 @@ st.caption(f"Word: {st.session_state.current_word}")
 st.caption(f"Lives: {st.session_state.lives}")
 
 # -----------------------
-# GRID
+# DRAW GRID
 # -----------------------
-player_pos = st.session_state.path[st.session_state.player_index]
+player_pos = st.session_state.path[st.session_state.player_step]
+next_pos = None
+
+if st.session_state.player_step + 1 < len(st.session_state.path):
+    next_pos = st.session_state.path[st.session_state.player_step + 1]
 
 for i in range(GRID_SIZE):
     cols = st.columns(GRID_SIZE)
@@ -121,13 +131,15 @@ for i in range(GRID_SIZE):
 
         if pos == player_pos:
             label = "🧙"
+        elif pos == next_pos:
+            label = f"✨ {st.session_state.grid[i][j]}"
         elif pos == st.session_state.path[-1]:
             label = "👻"
         else:
             label = st.session_state.grid[i][j]
 
         if cols[j].button(label, key=f"{i}-{j}", use_container_width=True):
-            handle_click(i, j)
+            move(i, j)
 
 # -----------------------
 # DOOR
@@ -135,17 +147,17 @@ for i in range(GRID_SIZE):
 if st.session_state.awaiting:
     st.subheader("🚪 Solve to Continue")
 
-    if st.session_state.question is None:
-        q, a = generate_question()
-        st.session_state.question = q
-        st.session_state.answer = a
+    if st.session_state.q is None:
+        q, a = gen_q()
+        st.session_state.q = q
+        st.session_state.a = a
 
-    st.write(st.session_state.question)
+    st.write(st.session_state.q)
     ans = st.text_input("Answer")
 
     if st.button("Submit"):
-        if ans.strip() == st.session_state.answer:
-            st.success("Correct!")
+        if ans.strip() == st.session_state.a:
+            st.success("Door opened!")
             st.session_state.word_index += 1
             st.session_state.current_word = ""
         else:
@@ -153,5 +165,5 @@ if st.session_state.awaiting:
             st.session_state.lives -= 1
 
         st.session_state.awaiting = False
-        st.session_state.question = None
+        st.session_state.q = None
         st.rerun()
