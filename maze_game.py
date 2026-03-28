@@ -136,42 +136,28 @@ def draw_maze():
         cols = st.columns(GRID_SIZE)
 
         for j in range(GRID_SIZE):
-
             pos = [i, j]
             is_player = pos == st.session_state.player
             is_enemy = pos == st.session_state.enemy
             is_goal = pos == GOAL
             visited = tuple(pos) in st.session_state.visited
 
-            # Fog
+            # Decide appearance
             if not visited:
-                color = "#111"
-                label = ""
+                label = "⬛"
             else:
                 if is_player:
-                    color = "#4CAF50"
                     label = "🧙"
                 elif is_enemy:
-                    color = "#9C27B0"
                     label = "👻"
                 elif is_goal:
-                    color = "#FF5722"
                     label = "🔥"
                 else:
-                    color = "#2196F3"
-                    label = ""
+                    label = "🟦"
 
-            if cols[j].button(label or " ", key=f"{i}-{j}"):
+            # IMPORTANT: button is the tile itself
+            if cols[j].button(label, key=f"{i}-{j}", use_container_width=True):
                 handle_click(pos, visited)
-
-            cols[j].markdown(f"""
-                <div style="
-                    margin-top:-65px;
-                    height:65px;
-                    background:{color};
-                    border-radius:10px;
-                "></div>
-            """, unsafe_allow_html=True)
 
 # -----------------------
 # CLICK HANDLER
