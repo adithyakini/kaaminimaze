@@ -24,12 +24,12 @@ defaults = {
     "step": 0,
     "word_index": 0,
     "current_input": "",
+    "used_indices": [],
     "lives": 3,
     "awaiting": False,
     "q": None,
     "a": None,
-    "letters": [],
-    "message": ""
+    "feedback": ""
 }
 
 for k, v in defaults.items():
@@ -37,7 +37,7 @@ for k, v in defaults.items():
         st.session_state[k] = v
 
 # -----------------------
-# BUILD GAME
+# BUILD SNAKE PATH
 # -----------------------
 def build_game():
     grid = [[random.choice(string.ascii_uppercase) for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
@@ -76,24 +76,31 @@ def gen_q():
 # -----------------------
 # LETTER LOGIC
 # -----------------------
-def prepare_letters():
-    target = WORDS[st.session_state.word_index]
-    letters = list(target)
-    random.shuffle(letters)
-    st.session_state.letters = letters
+def click_letter(idx, letter):
+    if idx in st.session_state.used_indices:
+        return
 
-def click_letter(letter):
     st.session_state.current_input += letter
+    st.session_state.used_indices.append(idx)
 
-def undo_letter():
-    st.session_state.current_input = st.session_state.current_input[:-1]
+def undo():
+    if st.session_state.current_input:
+        st.session_state.current_input = st.session_state.current_input[:-1]
+        st.session_state.used_indices.pop()
 
-def clear_input():
+def clear():
     st.session_state.current_input = ""
+    st.session_state.used_indices = []
 
 def shuffle_letters():
-    random.shuffle(st.session_state.letters)
+    st.session_state.letter_order = random.sample(
+        list(range(len(WORDS[st.session_state.word_index]))),
+        len(WORDS[st.session_state.word_index])
+    )
 
+# -----------------------
+# SUBMIT WORD
+# -----------------------
 def submit_word():
     target = WORDS[st.session_state.word_index]
 
@@ -101,21 +108,17 @@ def submit_word():
         for _ in target:
             st.session_state.step += 1
 
-        st.session_state.message = "✅ Correct!"
         st.session_state.awaiting = True
-        st.session_state.current_input = ""
+        st.session_state.feedback = "✅ Correct!"
+        clear()
     else:
-        st.session_state.message = "❌ Wrong word"
-        st.session_state.current_input = ""
-
-# prepare letters if empty
-if not st.session_state.letters and st.session_state.word_index < len(WORDS):
-    prepare_letters()
+        st.session_state.feedback = "❌ Try again!"
+        clear()
 
 # -----------------------
-# UI
+# UI HEADER
 # -----------------------
-st.title("🧙 Exorcist WOW (Polished)")
+st.title("🧙 Exorcist WOW")
 
 if st.session_state.lives <= 0:
     st.error("💀 Game Over")
@@ -125,51 +128,72 @@ if st.session_state.lives <= 0:
     st.stop()
 
 if st.session_state.word_index >= len(WORDS):
-    st.success("👻 Exorcism Complete!")
-    st.balloons()
+    st.success("👻 You reached the ghost! Exorcism complete!")
     st.stop()
 
 target = WORDS[st.session_state.word_index]
 
 st.info(RIDDLES[target])
-st.caption(f"Word: {st.session_state.current_input}")
-st.caption(f"Lives: {st.session_state.lives}")
-
-if st.session_state.message:
-    st.write(st.session_state.message)
 
 # -----------------------
-# LETTER UI
+# WORD SLOTS
 # -----------------------
-st.markdown("### 🔤 Choose Letters")
+slots = []
+for i in range(len(target)):
+    if i < len(st.session_state.current_input):
+        slots.append(st.session_state.current_input[i])
+    else:
+        slots.append("_")
 
-cols = st.columns(len(st.session_state.letters))
-for i, l in enumerate(st.session_state.letters):
-    if cols[i].button(l, key=f"letter-{i}"):
-        click_letter(l)
+st.markdown("### " + " ".join(slots))
+st.caption(f"Lives ❤️: {st.session_state.lives}")
+
+if st.session_state.feedback:
+    st.write(st.session_state.feedback)
+
+# -----------------------
+# LETTER BANK
+# -----------------------
+letters = list(target)
+
+if "letter_order" not in st.session_state:
+    st.session_state.letter_order = list(range(len(letters)))
+
+cols = st.columns(len(letters))
+
+for i, idx in enumerate(st.session_state.letter_order):
+    letter = letters[idx]
+    disabled = idx in st.session_state.used_indices
+
+    if cols[i].button(letter, disabled=disabled):
+        click_letter(idx, letter)
         st.rerun()
 
 # controls
 c1, c2, c3, c4 = st.columns(4)
+
 with c1:
     if st.button("Submit"):
         submit_word()
         st.rerun()
+
 with c2:
     if st.button("Undo"):
-        undo_letter()
+        undo()
         st.rerun()
+
 with c3:
     if st.button("Clear"):
-        clear_input()
+        clear()
         st.rerun()
+
 with c4:
     if st.button("Shuffle"):
         shuffle_letters()
         st.rerun()
 
 # -----------------------
-# GRID (PROGRESS VISUAL)
+# GRID DISPLAY
 # -----------------------
 for i in range(GRID_SIZE):
     cols = st.columns(GRID_SIZE)
@@ -177,7 +201,7 @@ for i in range(GRID_SIZE):
         pos = (i, j)
 
         if pos in st.session_state.path[:st.session_state.step]:
-            label = f"🟨 {st.session_state.grid[i][j]}"
+            label = f"🟨"
         elif pos == st.session_state.path[st.session_state.step]:
             label = "🧙"
         elif pos == st.session_state.path[-1]:
@@ -185,13 +209,13 @@ for i in range(GRID_SIZE):
         else:
             label = "⬛"
 
-        cols[j].button(label, key=f"grid-{i}-{j}", disabled=True)
+        cols[j].button(label, key=f"{i}-{j}", disabled=True)
 
 # -----------------------
 # DOOR SYSTEM
 # -----------------------
 if st.session_state.awaiting:
-    st.markdown("## 🚪 Door Challenge")
+    st.subheader("🚪 Solve to Continue")
 
     if st.session_state.q is None:
         q, a = gen_q()
@@ -203,9 +227,8 @@ if st.session_state.awaiting:
 
     if st.button("Submit Answer"):
         if ans.strip() == st.session_state.a:
-            st.success("Door Opened! 🚪")
+            st.success("Door opened! ✅")
             st.session_state.word_index += 1
-            st.session_state.letters = []
         else:
             st.error("Wrong! Lost a life ❌")
             st.session_state.lives -= 1
