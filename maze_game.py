@@ -241,48 +241,84 @@ else:
 # UI
 # ------------------------
 # ------------------------
-# CHUCKY INTRO (FIXED)
+# CINEMATIC CHUCKY INTRO
 # ------------------------
 if st.session_state.get("show_intro", False):
 
     exit_row = st.session_state.exit[0]
 
-    # approximate position of exit gate
     x_percent = 85
     y_percent = 10 + (exit_row / GRID_SIZE) * 70
 
+    # 🔊 thunder EXACTLY at start
+    play_sound(THUNDER)
+
     st.markdown(f"""
     <style>
+
+    /* SCREEN SHAKE */
+    @keyframes shake {{
+        0% {{ transform: translate(0px, 0px); }}
+        25% {{ transform: translate(5px, -5px); }}
+        50% {{ transform: translate(-5px, 5px); }}
+        75% {{ transform: translate(5px, 5px); }}
+        100% {{ transform: translate(0px, 0px); }}
+    }}
+
+    .shake {{
+        animation: shake 0.4s;
+    }}
+
+    /* APPLY SHAKE TO WHOLE APP */
+    .stApp {{
+        animation: shake 0.4s;
+    }}
 
     .chucky-container {{
         position: fixed;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        animation: moveToExit 4s forwards;
+        animation: cinematicMove 4s forwards;
         z-index: 9999;
         pointer-events: none;
     }}
 
     .chucky-container img {{
-        width: 70vw;
-        max-width: 800px;
+        width: 75vw;
+        max-width: 900px;
         border-radius: 20px;
     }}
 
-    @keyframes moveToExit {{
+    @keyframes cinematicMove {{
         0% {{
-            transform: translate(-50%, -50%) scale(1.8);
+            transform: translate(-50%, -50%) scale(0.2);
             opacity: 0;
         }}
+
+        /* 👹 JUMP SCARE (FAST ZOOM) */
         10% {{
+            transform: translate(-50%, -50%) scale(2.5);
             opacity: 1;
         }}
-        60% {{
-            transform: translate({x_percent}vw, {y_percent}vh) scale(0.5);
+
+        20% {{
+            transform: translate(-50%, -50%) scale(1.8);
         }}
+
+        /* 🧘 settle before moving */
+        40% {{
+            transform: translate(-50%, -50%) scale(1.2);
+        }}
+
+        /* 🚀 MOVE TO EXIT */
+        75% {{
+            transform: translate({x_percent}vw, {y_percent}vh) scale(0.4);
+        }}
+
+        /* 👻 ENTER GATE */
         100% {{
-            transform: translate({x_percent}vw, {y_percent}vh) scale(0.1);
+            transform: translate({x_percent}vw, {y_percent}vh) scale(0.05);
             opacity: 0;
         }}
     }}
@@ -295,6 +331,7 @@ if st.session_state.get("show_intro", False):
     """, unsafe_allow_html=True)
 
     st.stop()
+    
 with st.sidebar:
     st.title("🧠 How to Play")
 
