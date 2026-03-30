@@ -5,6 +5,7 @@ import time
 from openai import OpenAI
 
 level = st.selectbox("Difficulty", ["easy","medium","hard"])
+GRID_SIZE = 10
 
 #-------------
 # get AI words
