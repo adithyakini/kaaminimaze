@@ -4,16 +4,13 @@ import string
 import time
 from openai import OpenAI
 
-client = OpenAI()
-GRID_SIZE = 10
-client = OpenAI()
-
-# ------------------------
-# AI words
-# ------------------------
+#-------------
+# get AI words
+#-------------
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 def get_words(level):
-    
+
     if level == "easy":
         rule = "exactly 3 letters"
     elif level == "medium":
@@ -22,44 +19,28 @@ def get_words(level):
         rule = "6 or more letters"
 
     prompt = f"""
-    Generate 5 COMMON English words.
+    Generate 5 common English words.
 
     Rules:
     - Each word must be {rule}
-    - Words must be simple and widely known
-    - Avoid rare or complex words
-    - Make them suitable for a word puzzle game
+    - Words must be simple and common
+    - No rare or obscure words
 
     Return ONLY comma-separated words.
     """
 
-    try:
-        res = client.chat.completions.create(
-            model="gpt-5.3",
-            messages=[{"role": "user", "content": prompt}]
-        )
+    response = client.chat.completions.create(
+        model="gpt-5.3",
+        messages=[{"role": "user", "content": prompt}]
+    )
 
-        words = res.choices[0].message.content.strip().upper().split(",")
+    text = response.choices[0].message.content.strip()
 
-        # clean + enforce rules again (important)
-        cleaned = []
-        for w in words:
-            w = w.strip()
-            if level == "easy" and len(w) == 3:
-                cleaned.append(w)
-            elif level == "medium" and 4 <= len(w) <= 5:
-                cleaned.append(w)
-            elif level == "hard" and len(w) >= 6:
-                cleaned.append(w)
+    words = [w.strip().upper() for w in text.split(",")]
 
-        # fallback if AI messes up
-        if len(cleaned) < 5:
-            return fallback_words(level)
-
-        return cleaned[:5]
-
-    except:
-        return fallback_words(level)
+    return words
+words = get_words(level)
+st.write("DEBUG words:", words)
 
 # ------------------------
 # BRANCHING PATH GENERATION
