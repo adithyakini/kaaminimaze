@@ -91,45 +91,23 @@ level = st.selectbox("Difficulty", ["easy","medium","hard"])
 def get_words(level):
 
     if level == "easy":
-        prompt = """
-        Generate 10 very simple English words suitable for a 3rd grade child.
-
-        Rules:
-        - Exactly 3 letters
-        - Very common everyday words (CAT, DOG, SUN, BAT, HAT, PEN, CUP)
-        - Easy to recognize and spell
-        - No obscure or difficult words
-        - No duplicates
-
-        Return ONLY comma-separated words.
-        """
-
+        rule = "exactly 4 letter very simple words for kids (like BOOK, TREE, BALL, FISH)"
     elif level == "medium":
-        prompt = """
-        Generate 10 common English words.
+        rule = "exactly 5 letter common words (like APPLE, WATER, LIGHT)"
+    else:
+        rule = "6 or more letter words (like SHADOW, MYSTIC, PLANET)"
 
-        Rules:
-        - 4 to 5 letters
-        - Everyday vocabulary
-        - Avoid overly basic words like CAT, DOG
-        - No obscure words
-        - No duplicates
+    prompt = f"""
+    Generate 10 English words.
 
-        Return ONLY comma-separated words.
-        """
+    Rules:
+    - {rule}
+    - Words must be common and easy to recognize
+    - No obscure or rare words
+    - No duplicates
 
-    else:  # hard
-        prompt = """
-        Generate 10 challenging English words.
-
-        Rules:
-        - 6 or more letters
-        - Slightly advanced vocabulary
-        - Still recognizable (not rare dictionary words)
-        - No duplicates
-
-        Return ONLY comma-separated words.
-        """
+    Return ONLY comma-separated words.
+    """
 
     res = client.chat.completions.create(
         model="gpt-4o-mini",
@@ -137,9 +115,7 @@ def get_words(level):
         messages=[{"role": "user", "content": prompt}]
     )
 
-    words = [w.strip().upper() for w in res.choices[0].message.content.split(",")]
-
-    return words
+    return [w.strip().upper() for w in res.choices[0].message.content.split(",")]
 
 # ------------------------
 # PATH GENERATION
