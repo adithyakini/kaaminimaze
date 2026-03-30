@@ -120,12 +120,12 @@ if "leaderboard" not in st.session_state:
     st.session_state.leaderboard = []
 
 # ------------------------
-# TIMER
+# TIMER (FIXED)
 # ------------------------
-if not st.session_state.finished:
-    elapsed = int(time.time() - st.session_state.start_time)
+if st.session_state.finished:
+    elapsed = st.session_state.get("final_time", 0)
 else:
-    elapsed = st.session_state.final_time
+    elapsed = int(time.time() - st.session_state.start_time)
 
 # ------------------------
 # UI
@@ -225,8 +225,8 @@ if idx == len(path) - 1 and not st.session_state.finished:
 
     st.success(f"✨ Exorcism complete in {final_time}s!")
 
+    st.session_state.final_time = final_time   # ✅ REQUIRED
     st.session_state.leaderboard.append(final_time)
-    st.session_state.final_time = final_time
     st.session_state.finished = True
 
 # ------------------------
