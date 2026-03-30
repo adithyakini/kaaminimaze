@@ -4,6 +4,8 @@ import string
 import time
 from openai import OpenAI
 
+level = st.selectbox("Difficulty", ["easy","medium","hard"])
+
 #-------------
 # get AI words
 #-------------
@@ -78,7 +80,6 @@ def generate_branching_path(words):
 # ------------------------
 # INIT
 # ------------------------
-level = st.selectbox("Difficulty", ["easy","medium","hard"])
 
 if "init" not in st.session_state or st.session_state.get("level") != level:
 
