@@ -91,33 +91,49 @@ level = st.selectbox("Difficulty", ["easy","medium","hard"])
 def get_words(level):
 
     if level == "easy":
-        rule = "exactly 3 letters"
+        prompt = """
+        Generate 10 very simple English words suitable for a 3rd grade child.
+
+        Rules:
+        - Exactly 3 letters
+        - Very common everyday words (CAT, DOG, SUN, BAT, HAT, PEN, CUP)
+        - Easy to recognize and spell
+        - No obscure or difficult words
+        - No duplicates
+
+        Return ONLY comma-separated words.
+        """
+
     elif level == "medium":
-        rule = "4 to 5 letters"
-    else:
-        rule = "6 or more letters"
+        prompt = """
+        Generate 10 common English words.
 
-    # 🔥 random theme to diversify output
-    themes = ["nature", "space", "food", "objects", "animals", "mystery", "fantasy"]
-    theme = random.choice(themes)
+        Rules:
+        - 4 to 5 letters
+        - Everyday vocabulary
+        - Avoid overly basic words like CAT, DOG
+        - No obscure words
+        - No duplicates
 
-    prompt = f"""
-    Generate 5 UNIQUE English words.
+        Return ONLY comma-separated words.
+        """
 
-    Rules:
-    - Each word must be {rule}
-    - Theme: {theme}
-    - Avoid very common beginner words like CAT, DOG, SUN, BAT
-    - Words must still be understandable (not obscure)
-    - No repeats
-    - No explanations
+    else:  # hard
+        prompt = """
+        Generate 10 challenging English words.
 
-    Return ONLY comma-separated words.
-    """
+        Rules:
+        - 6 or more letters
+        - Slightly advanced vocabulary
+        - Still recognizable (not rare dictionary words)
+        - No duplicates
+
+        Return ONLY comma-separated words.
+        """
 
     res = client.chat.completions.create(
         model="gpt-4o-mini",
-        temperature=0.9,   # 🔥 more randomness
+        temperature=0.8,
         messages=[{"role": "user", "content": prompt}]
     )
 
