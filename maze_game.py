@@ -199,9 +199,6 @@ if "leaderboard" not in st.session_state:
     st.session_state.leaderboard = load_leaderboard()
 
 # ------------------------
-# CINEMATIC CHUCKY INTRO (NON-BLOCKING FIX)
-# ------------------------
-# ------------------------
 # CHUCKY INTRO (RUN ONCE ONLY)
 # ------------------------
 if st.session_state.get("show_intro", False) and not st.session_state.get("intro_played", False):
