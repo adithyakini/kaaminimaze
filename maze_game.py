@@ -135,7 +135,7 @@ else:
 st.title("🧙 Word Maze Exorcism")
 
 st.write(f"⏱️ Time: {elapsed}s | ❤️ Lives: {st.session_state.lives}")
-current_idx = st.session_state.current_word_index
+current_idx = min(st.session_state.current_word_index, len(st.session_state.words) - 1)
 words = st.session_state.words
 
 current_idx = st.session_state.current_word_index
@@ -240,10 +240,14 @@ for i in range(GRID_SIZE):
                 if next_index < len(path) and (x,y) == path[next_index]:
                     st.session_state.index = next_index
                     st.session_state.letters_progress += 1
-                    current_word = st.session_state.words[st.session_state.current_word_index]
-                    if st.session_state.letters_progress >= len(current_word):
-                        st.session_state.current_word_index += 1
-                        st.session_state.letters_progress = 0
+                    if st.session_state.current_word_index < len(st.session_state.words):
+                        current_word = st.session_state.words[st.session_state.current_word_index]
+                    else:
+                        current_word = ""
+                    if (st.session_state.current_word_index < len(st.session_state.words)
+                        and st.session_state.letters_progress >= len(current_word)):
+                            st.session_state.current_word_index += 1
+                            st.session_state.letters_progress = 0
                     st.rerun()
                 else:
                     st.session_state.lives -= 1
