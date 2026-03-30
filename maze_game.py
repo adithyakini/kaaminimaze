@@ -5,55 +5,58 @@ import time
 from openai import OpenAI
 
 client = OpenAI()
-
 GRID_SIZE = 10
 
 # ------------------------
-# AI WORDS (5 CONNECTED)
+# AI WORDS
 # ------------------------
 def get_words(level):
     prompt = f"""
-    Generate 5 common English words that can connect sequentially.
+    Generate 5 simple English words.
     Difficulty: {level}
-
-    Rules:
-    - easy: 3-5 letters
-    - medium: 4-6 letters
-    - hard: 5-8 letters
-    - words should be simple and common
-
-    Return comma-separated.
+    Return comma-separated only.
     """
-
     try:
         res = client.chat.completions.create(
             model="gpt-5.3",
             messages=[{"role": "user", "content": prompt}]
         )
-        words = res.choices[0].message.content.upper().split(",")
-        return [w.strip() for w in words][:5]
+        return [w.strip().upper() for w in res.choices[0].message.content.split(",")][:5]
     except:
         return ["CAT","DOG","SUN","MOON","STAR"]
 
 # ------------------------
-# GRID WITH PATH
+# BRANCHING PATH GENERATION
 # ------------------------
-def generate_grid(words):
+def generate_branching_path(words):
     grid = [[random.choice(string.ascii_uppercase) for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
 
-    path = []
+    main_path = []
     x, y = 0, 0
 
-    directions = [(0,1),(1,0),(0,1),(1,0),(0,1)]  # zig-zag
-
-    for word, (dx,dy) in zip(words, directions):
+    for word in words:
         for ch in word:
             grid[x][y] = ch
-            path.append((x,y))
-            x += dx
-            y += dy
+            main_path.append((x,y))
 
-    return grid, path
+            # random branching direction
+            moves = [(1,0),(0,1),(-1,0),(0,-1)]
+            random.shuffle(moves)
+
+            for dx, dy in moves:
+                nx, ny = x+dx, y+dy
+                if 0 <= nx < GRID_SIZE and 0 <= ny < GRID_SIZE and (nx,ny) not in main_path:
+                    x, y = nx, ny
+                    break
+
+    # add fake branches
+    for _ in range(20):
+        bx = random.randint(0, GRID_SIZE-1)
+        by = random.randint(0, GRID_SIZE-1)
+        if (bx,by) not in main_path:
+            grid[bx][by] = random.choice(string.ascii_uppercase)
+
+    return grid, main_path
 
 # ------------------------
 # INIT
@@ -63,16 +66,18 @@ level = st.selectbox("Difficulty", ["easy","medium","hard"])
 if "init" not in st.session_state or st.session_state.get("level") != level:
 
     words = get_words(level)
-    grid, path = generate_grid(words)
+    grid, path = generate_branching_path(words)
 
     st.session_state.grid = grid
     st.session_state.path = path
     st.session_state.words = words
     st.session_state.level = level
 
-    st.session_state.player_index = 0
+    st.session_state.index = 0
     st.session_state.start_time = time.time()
     st.session_state.finished = False
+    st.session_state.lives = 3
+    st.session_state.wrong_tiles = set()
 
     if "leaderboard" not in st.session_state:
         st.session_state.leaderboard = []
@@ -83,19 +88,20 @@ if "init" not in st.session_state or st.session_state.get("level") != level:
 # TIMER
 # ------------------------
 elapsed = int(time.time() - st.session_state.start_time)
-st.write(f"⏱️ Time: {elapsed}s")
 
-# ------------------------
-# GAME STATE
-# ------------------------
+st.title("🧙 Word Maze Escape")
+st.write(f"⏱️ Time: {elapsed}s | ❤️ Lives: {st.session_state.lives}")
+st.write(f"Words: {' → '.join(st.session_state.words)}")
+
 grid = st.session_state.grid
 path = st.session_state.path
-words = st.session_state.words
-player_i = st.session_state.player_index
+idx = st.session_state.index
 
-st.title("🧙 Word Path Maze")
-
-st.write(f"Words to find: {' → '.join(words)}")
+# ------------------------
+# ENTRY / EXIT VISUAL
+# ------------------------
+st.write("🚪 Entry Gate (Wizard starts outside)")
+st.write("🚪 Exit Gate (Ghost waiting outside)")
 
 # ------------------------
 # GRID UI
@@ -105,39 +111,51 @@ for i in range(GRID_SIZE):
     for j in range(GRID_SIZE):
 
         label = grid[i][j]
+        style = ""
 
-        if player_i < len(path) and (i,j) == path[player_i]:
+        # wizard position
+        if idx < len(path) and (i,j) == path[idx]:
             label = "🧙"
-        elif (i,j) in path[:player_i]:
-            label = "🟦"
-        
-        if cols[j].button(label, key=f"{i}-{j}"):
+
+        # correct path (green border)
+        elif (i,j) in path[:idx]:
+            style = "border: 2px solid green;"
+
+        # wrong clicked tiles (red border)
+        elif (i,j) in st.session_state.wrong_tiles:
+            style = "border: 2px solid red;"
+
+        btn = cols[j].button(label, key=f"{i}-{j}")
+
+        if btn:
 
             if st.session_state.finished:
                 continue
 
-            # correct next step
-            if player_i < len(path) and (i,j) == path[player_i]:
-                st.session_state.player_index += 1
-
-                # mysterious sound trigger
+            # correct move
+            if idx < len(path) and (i,j) == path[idx]:
+                st.session_state.index += 1
                 st.audio("https://www.soundjay.com/button/beep-07.wav")
-
                 st.rerun()
 
             else:
-                st.warning("❌ Wrong path")
+                st.session_state.lives -= 1
+                st.session_state.wrong_tiles.add((i,j))
+                st.warning("❌ Wrong step!")
+
+                if st.session_state.lives <= 0:
+                    st.error("💀 Game Over")
+                    st.session_state.finished = True
 
 # ------------------------
 # WIN
 # ------------------------
-if st.session_state.player_index >= len(path) and not st.session_state.finished:
+if st.session_state.index >= len(path) and not st.session_state.finished:
 
-    total_time = int(time.time() - st.session_state.start_time)
+    total = int(time.time() - st.session_state.start_time)
+    st.success(f"🎉 Escaped in {total}s!")
 
-    st.success(f"🎉 Completed in {total_time}s")
-
-    st.session_state.leaderboard.append(total_time)
+    st.session_state.leaderboard.append(total)
     st.session_state.finished = True
 
 # ------------------------
@@ -145,9 +163,7 @@ if st.session_state.player_index >= len(path) and not st.session_state.finished:
 # ------------------------
 st.subheader("🏆 Leaderboard")
 
-scores = sorted(st.session_state.leaderboard)
-
-for i, s in enumerate(scores[:5]):
+for i, s in enumerate(sorted(st.session_state.leaderboard)[:5]):
     st.write(f"{i+1}. {s}s")
 
 # ------------------------
