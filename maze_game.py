@@ -6,7 +6,15 @@ from openai import OpenAI
 import random
 import json
 import os
+import base64
 
+def get_base64_image(path):
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
+chucky_base64 = get_base64_image("chucky.png")
+
+        
 LEADERBOARD_FILE = "leaderboard.json"
 
 def load_leaderboard():
@@ -269,7 +277,48 @@ if st.session_state.get("show_intro", False):
     </style>
 
     <div class="chucky-container">
-        <img src="chucky.png">
+        st.markdown(f"""
+<style>
+
+.chucky-container {{
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    animation: moveToExit 4s forwards;
+    z-index: 9999;
+    pointer-events: none;
+}}
+
+.chucky-container img {{
+    width: 70vw;          /* BIG */
+    max-width: 800px;
+    border-radius: 20px;
+}}
+
+@keyframes moveToExit {{
+    0% {{
+        transform: translate(-50%, -50%) scale(1.5);
+        opacity: 0;
+    }}
+    10% {{
+        opacity: 1;
+    }}
+    70% {{
+        transform: translate({x_percent}vw, {y_percent}vh) scale(0.5);
+    }}
+    100% {{
+        transform: translate({x_percent}vw, {y_percent}vh) scale(0.1);
+        opacity: 0;
+    }}
+}}
+
+</style>
+
+<div class="chucky-container">
+    <img src="data:image/png;base64,{chucky_base64}">
+</div>
+""", unsafe_allow_html=True)
     </div>
     """, unsafe_allow_html=True)
 
