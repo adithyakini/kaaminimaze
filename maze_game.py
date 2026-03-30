@@ -78,6 +78,12 @@ def generate_branching_path(words):
 
     return grid, main_path
 
+entry_tile = path[0]
+exit_tile = path[-1]
+
+st.session_state.entry = entry_tile
+st.session_state.exit = exit_tile
+
 # ------------------------
 # INIT
 # ------------------------
@@ -93,7 +99,7 @@ if "init" not in st.session_state or st.session_state.get("level") != level:
     st.session_state.path = path
     st.session_state.level = level
 
-    st.session_state.index = 0
+    st.session_state.index = -1   # 👈 outside grid
     st.session_state.lives = 3
     st.session_state.wrong_tiles = set()
     st.session_state.start_time = time.time()
@@ -123,58 +129,84 @@ st.write("🚪 Entry Gate (Wizard starts outside)")
 st.write("🚪 Exit Gate (Ghost waiting outside)")
 
 # ------------------------
-# GRID UI (FIXED COLORS)
+# GRID UI (UPDATED)
 # ------------------------
 for i in range(GRID_SIZE):
-    cols = st.columns(GRID_SIZE)
-    for j in range(GRID_SIZE):
+    cols = st.columns(GRID_SIZE + 2)  # 👈 extra space for entry/exit
 
-        base = grid[i][j]
+    for j in range(GRID_SIZE + 2):
 
-        # Wizard position
-        if idx < len(path) and (i,j) == path[idx]:
+        # LEFT SIDE (Wizard entry)
+        if j == 0:
+            if i == st.session_state.entry[0]:
+                label = "🚪🧙" if st.session_state.index == -1 else "🚪"
+            else:
+                label = ""
+            cols[j].button(label, key=f"{i}-entry")
+            continue
+
+        # RIGHT SIDE (Ghost exit)
+        if j == GRID_SIZE + 1:
+            if i == st.session_state.exit[0]:
+                label = "👻🚪"
+            else:
+                label = ""
+            cols[j].button(label, key=f"{i}-exit")
+            continue
+
+        # NORMAL GRID
+        x, y = i, j-1
+        base = grid[x][y]
+
+        # Wizard on path
+        if st.session_state.index >= 0 and st.session_state.index < len(path) and (x,y) == path[st.session_state.index]:
             label = "🧙"
 
-        # Correct path (green)
-        elif (i,j) in path[:idx]:
+        # Completed path
+        elif st.session_state.index >= 0 and (x,y) in path[:st.session_state.index]:
             label = f"🟩{base}"
 
-        # Wrong tiles (red)
-        elif (i,j) in st.session_state.wrong_tiles:
+        # Wrong tiles
+        elif (x,y) in st.session_state.wrong_tiles:
             label = f"🟥{base}"
 
         else:
             label = base
 
-        if cols[j].button(label, key=f"{i}-{j}"):
+        if cols[j].button(label, key=f"{x}-{y}"):
 
             if st.session_state.finished:
                 continue
 
-            # ✅ Correct move
-            if idx < len(path) and (i,j) == path[idx]:
+            # FIRST MOVE (enter gate)
+            if st.session_state.index == -1 and (x,y) == st.session_state.entry:
+                st.session_state.index = 0
+                st.rerun()
+
+            # NORMAL PATH MOVE
+            elif (
+                st.session_state.index >= 0
+                and st.session_state.index < len(path)
+                and (x,y) == path[st.session_state.index]
+            ):
                 st.session_state.index += 1
                 st.rerun()
 
-            # ❌ Wrong move
+            # WRONG MOVE
             else:
                 st.session_state.lives -= 1
-                st.session_state.wrong_tiles.add((i,j))
-                st.warning("Wrong tile!")
+                st.session_state.wrong_tiles.add((x,y))
+                st.warning("❌ Wrong path!")
 
                 if st.session_state.lives <= 0:
-                    st.error("Game Over")
+                    st.error("💀 Game Over")
                     st.session_state.finished = True
 
 # ------------------------
 # WIN
 # ------------------------
-if st.session_state.index >= len(path) and not st.session_state.finished:
-
-    total = int(time.time() - st.session_state.start_time)
-    st.success(f"🎉 Escaped in {total}s!")
-
-    st.session_state.leaderboard.append(total)
+if st.session_state.index >= len(path):
+    st.success("✨ Om Bhoor bhuva swaha tatsavitur varenyam bhargo devasya deemahi prachodayaaaaat!!! The exorcism of Kamala is now complete.")
     st.session_state.finished = True
 
 # ------------------------
