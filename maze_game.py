@@ -370,34 +370,36 @@ letters_done = st.session_state.letters_progress
 
 for i, w in enumerate(words):
 
-    # ✅ COMPLETED WORDS
+    # ✅ COMPLETED
     if i in st.session_state.completed_words:
         display.append(w)
 
-    # ✅ CURRENT WORD
+    # ✅ CURRENT WORD (progressive)
     elif i == current_idx:
-
         revealed = ""
         for j, ch in enumerate(w):
             if j < letters_done:
                 revealed += ch + " "
             else:
                 revealed += "_ "
-
         display.append(f"👉 {revealed.strip()}")
 
-    # ✅ FUTURE WORDS (PARTIAL HINT)
+    # ✅ FUTURE WORDS (2-letter hint system)
     else:
-        hint = ""
-        for j, ch in enumerate(w):
-            if j == 0:
-                hint += ch + " "
-            elif j == len(w) - 1:
-                hint += ch + " "
-            else:
-                hint += "_ "
+        hint = ["_"] * len(w)
 
-        display.append(hint.strip())
+        # always reveal first letter
+        hint[0] = w[0]
+
+        # reveal one more letter (middle or last)
+        if len(w) > 2:
+            reveal_index = len(w) // 2
+        else:
+            reveal_index = len(w) - 1
+
+        hint[reveal_index] = w[reveal_index]
+
+        display.append(" ".join(hint))
 
 st.write("Words:", " → ".join(display))
 
