@@ -6,24 +6,60 @@ from openai import OpenAI
 
 client = OpenAI()
 GRID_SIZE = 10
+client = OpenAI()
 
 # ------------------------
-# AI WORDS
+# AI words
 # ------------------------
+
 def get_words(level):
+    
+    if level == "easy":
+        rule = "exactly 3 letters"
+    elif level == "medium":
+        rule = "4 to 5 letters"
+    else:
+        rule = "6 or more letters"
+
     prompt = f"""
-    Generate 5 simple English words.
-    Difficulty: {level}
-    Return comma-separated only.
+    Generate 5 COMMON English words.
+
+    Rules:
+    - Each word must be {rule}
+    - Words must be simple and widely known
+    - Avoid rare or complex words
+    - Make them suitable for a word puzzle game
+
+    Return ONLY comma-separated words.
     """
+
     try:
         res = client.chat.completions.create(
             model="gpt-5.3",
             messages=[{"role": "user", "content": prompt}]
         )
-        return [w.strip().upper() for w in res.choices[0].message.content.split(",")][:5]
+
+        words = res.choices[0].message.content.strip().upper().split(",")
+
+        # clean + enforce rules again (important)
+        cleaned = []
+        for w in words:
+            w = w.strip()
+            if level == "easy" and len(w) == 3:
+                cleaned.append(w)
+            elif level == "medium" and 4 <= len(w) <= 5:
+                cleaned.append(w)
+            elif level == "hard" and len(w) >= 6:
+                cleaned.append(w)
+
+        # fallback if AI messes up
+        if len(cleaned) < 5:
+            return fallback_words(level)
+
+        return cleaned[:5]
+
     except:
-        return ["CAT","DOG","SUN","MOON","STAR"]
+        return fallback_words(level)
 
 # ------------------------
 # BRANCHING PATH GENERATION
