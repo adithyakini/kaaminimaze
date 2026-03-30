@@ -2,71 +2,55 @@ import streamlit as st
 import random
 import string
 
-GRID_SIZE = 8
+GRID_SIZE = 6
 
 # ------------------------
-# WORD POOL
+# WORD DICTIONARY
 # ------------------------
-WORDS = ["CAT", "DOG", "SUN", "MOON", "STAR", "FIRE", "WIND", "TREE", "ROCK"]
+DICTIONARY = [
+    "CAT","DOG","SUN","MOON","STAR","FIRE","WIND","TREE","ROCK",
+    "NOTE","TONE","STONE","GAME","WORD","PATH","MAZE","GHOST","WIZARD"
+]
+
+# prefix set for fast validation
+PREFIXES = set()
+for word in DICTIONARY:
+    for i in range(len(word)):
+        PREFIXES.add(word[:i+1])
 
 # ------------------------
-# UTILS
+# GRID GENERATOR
+# ------------------------
+def generate_grid():
+    return [[random.choice(string.ascii_uppercase) for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
+
+# ------------------------
+# NEIGHBORS
 # ------------------------
 def get_neighbors(x, y):
     moves = [(x+1,y),(x-1,y),(x,y+1),(x,y-1)]
     return [(i,j) for i,j in moves if 0 <= i < GRID_SIZE and 0 <= j < GRID_SIZE]
 
 # ------------------------
-# MAZE GENERATOR (DFS)
+# VALID MOVES (WORD LOGIC)
 # ------------------------
-def generate_maze():
-    grid = [[random.choice(string.ascii_uppercase) for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
-
-    start = (0, 0)
-    visited = set()
-    path = []
-
-    def dfs(x, y):
-        visited.add((x,y))
-        path.append((x,y))
-
-        if len(path) > GRID_SIZE * 2:
-            return True
-
-        neighbors = get_neighbors(x,y)
-        random.shuffle(neighbors)
-
-        for nx, ny in neighbors:
-            if (nx,ny) not in visited:
-                if dfs(nx, ny):
-                    return True
-
-        path.pop()
-        return False
-
-    dfs(0,0)
-
-    # embed words along path
-    word_path = []
-    i = 0
-    for word in WORDS[:5]:
-        for char in word:
-            if i < len(path):
-                x,y = path[i]
-                grid[x][y] = char
-                word_path.append((x,y))
-                i += 1
-
-    goal = word_path[-1]
-
-    return grid, word_path, goal
+def get_valid_moves(player, current_word, grid, visited):
+    valid = []
+    for nx, ny in get_neighbors(*player):
+        if (nx, ny) not in visited:
+            next_word = current_word + grid[nx][ny]
+            if next_word in PREFIXES:
+                valid.append((nx, ny))
+    return valid
 
 # ------------------------
-# VALID MOVES (SMART)
+# HINT SYSTEM
 # ------------------------
-def get_valid_moves(player, path):
-    neighbors = get_neighbors(*player)
-    return [n for n in neighbors if n in path]
+def get_hint(current_word):
+    for word in DICTIONARY:
+        if word.startswith(current_word) and word != current_word:
+            return word
+    return None
 
 # ------------------------
 # GHOST AI
@@ -86,22 +70,25 @@ def move_ghost(ghost, player):
 # INIT
 # ------------------------
 if "grid" not in st.session_state:
-    grid, path, goal = generate_maze()
-    st.session_state.grid = grid
-    st.session_state.path = path
-    st.session_state.goal = goal
+    st.session_state.grid = generate_grid()
     st.session_state.player = (0,0)
-    st.session_state.ghost = goal
+    st.session_state.ghost = (GRID_SIZE-1, GRID_SIZE-1)
+    st.session_state.current_word = st.session_state.grid[0][0]
+    st.session_state.visited = {(0,0)}
+    st.session_state.score = 0
     st.session_state.game_over = False
 
 grid = st.session_state.grid
 player = st.session_state.player
 ghost = st.session_state.ghost
-goal = st.session_state.goal
+current_word = st.session_state.current_word
 
-st.title("🧙 Smart Word Maze")
+st.title("🧙 Word Maze (Real Mode)")
 
-valid_moves = get_valid_moves(player, st.session_state.path)
+st.write(f"### Current Word: `{current_word}`")
+st.write(f"Score: {st.session_state.score}")
+
+valid_moves = get_valid_moves(player, current_word, grid, st.session_state.visited)
 
 # ------------------------
 # GRID RENDER
@@ -125,20 +112,42 @@ for i in range(GRID_SIZE):
                 continue
 
             if (i,j) in valid_moves:
-                st.session_state.player = (i,j)
 
-                # move ghost AFTER player
-                st.session_state.ghost = move_ghost(st.session_state.ghost, st.session_state.player)
+                letter = grid[i][j]
+                new_word = current_word + letter
+
+                st.session_state.player = (i,j)
+                st.session_state.current_word = new_word
+                st.session_state.visited.add((i,j))
+
+                # check full word
+                if new_word in DICTIONARY:
+                    st.success(f"✅ Word formed: {new_word}")
+                    st.session_state.score += len(new_word)
+
+                    # reset for next word chain
+                    st.session_state.current_word = ""
+                    st.session_state.visited = {st.session_state.player}
+
+                # ghost moves
+                st.session_state.ghost = move_ghost(ghost, st.session_state.player)
 
             else:
                 st.warning("❌ Invalid move")
 
 # ------------------------
+# HINT BUTTON
+# ------------------------
+if st.button("💡 Hint"):
+    hint = get_hint(current_word)
+    if hint:
+        st.info(f"Try building: {hint}")
+    else:
+        st.info("No hint available")
+
+# ------------------------
 # GAME STATES
 # ------------------------
-if st.session_state.player == goal:
-    st.success("🎉 You reached the ghost!")
-
 if st.session_state.player == st.session_state.ghost:
     st.error("💀 Ghost caught you!")
     st.session_state.game_over = True
