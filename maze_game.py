@@ -71,6 +71,33 @@ button[kind="secondary"] {
 GRID_SIZE = 10
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 level = st.selectbox("Difficulty", ["easy","medium","hard"])
+with st.sidebar:
+    st.title("🧠 How to Play")
+
+    st.markdown("""
+    **🧙 Objective**
+    - Enter through the gate 🚪
+    - Follow the hidden word path
+    - Reach the ghost 👻 and perform the exorcism
+
+    **🎯 Movement**
+    - Move one tile at a time
+    - Only one correct path exists
+    - Build words as you move
+
+    **🧩 Words**
+    - Current word reveals gradually
+    - Future words show hints (first & last letter)
+    - Completing a word unlocks the next
+
+    **❤️ Lives**
+    - You have 3 lives
+    - Wrong tile = lose 1 life
+
+    **🏁 Goal**
+    - Reach the exit gate 👻🚪
+    - Faster time = better leaderboard rank
+    """)
 
 # ------------------------
 # WORDS
@@ -143,22 +170,29 @@ if "init" not in st.session_state or st.session_state.get("level")!=level:
     grid = embed_words(path, words)
 
     st.session_state.update({
-        "grid":grid,
-        "path":path,
-        "words":words,
-        "entry":path[0],
-        "exit":path[-1],
-        "index":-1,
-        "lives":3,
-        "wrong_tiles":set(),
-        "start_time":time.time(),
-        "finished":False,
-        "current_word_index":0,
-        "letters_progress":0,
-        "completed_words":set(),
-        "show_intro":True,
-        "level":level
-    })
+    "grid": grid,
+    "path": path,
+    "words": words,
+    "entry": path[0],
+    "exit": path[-1],
+
+    # ✅ CRITICAL RESET
+    "index": -1,
+    "lives": 3,
+    "wrong_tiles": set(),
+
+    "start_time": time.time(),
+    "finished": False,
+
+    "current_word_index": 0,
+    "letters_progress": 0,
+    "completed_words": set(),
+
+    "show_intro": True,
+    "intro_played": False,
+
+    "level": level
+})
 
 # leaderboard
 if "leaderboard" not in st.session_state:
@@ -313,7 +347,12 @@ for i,e in enumerate(st.session_state.leaderboard):
 # RESET
 # ------------------------
 if st.button("🔄 New Game"):
-    lb=st.session_state.leaderboard
+
+    leaderboard = st.session_state.leaderboard
+
+    # ✅ FULL RESET (except leaderboard)
     st.session_state.clear()
-    st.session_state.leaderboard=lb
+
+    st.session_state.leaderboard = leaderboard
+
     st.rerun()
