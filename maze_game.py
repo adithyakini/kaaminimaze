@@ -78,11 +78,6 @@ def generate_branching_path(words):
 
     return grid, main_path
 
-entry_tile = path[0]
-exit_tile = path[-1]
-
-st.session_state.entry = entry_tile
-st.session_state.exit = exit_tile
 
 # ------------------------
 # INIT
@@ -94,6 +89,11 @@ if "init" not in st.session_state or st.session_state.get("level") != level:
 
     grid, path = generate_branching_path(words)
 
+    entry_tile = path[0]
+    exit_tile = path[-1]
+
+    st.session_state.entry = entry_tile
+    st.session_state.exit = exit_tile
     st.session_state.words = words
     st.session_state.grid = grid
     st.session_state.path = path
