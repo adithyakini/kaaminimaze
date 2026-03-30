@@ -77,19 +77,23 @@ def generate_full_path():
 
     return path
 
-    def generate_words_for_path(path_length, level):
-        words = []
+def generate_words_for_path(path_length, level):
+
+    words = []
 
     while sum(len(w) for w in words) < path_length:
+
         new_words = get_words(level)
+
         for w in new_words:
             words.append(w)
+
             if sum(len(w) for w in words) >= path_length:
                 break
 
     return words
-
-    def embed_words_in_grid(path, words):
+    
+def embed_words_in_grid(path, words):
     grid = [[random.choice(string.ascii_uppercase) for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
 
     i = 0
