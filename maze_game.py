@@ -44,25 +44,50 @@ def get_words(level):
 # ------------------------
 # PATH GENERATION
 # ------------------------
-def generate_branching_path(words):
+def generate_full_path(words):
     grid = [[random.choice(string.ascii_uppercase) for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
 
     path = []
-    x, y = 0, 0
+    visited = set()
 
+    x, y = 0, 0
+    path.append((x, y))
+    visited.add((x, y))
+
+    # build path until right edge reached
+    while y < GRID_SIZE - 1:
+
+        moves = [(1,0),(-1,0),(0,1)]  # bias towards right
+        random.shuffle(moves)
+
+        moved = False
+
+        for dx, dy in moves:
+            nx, ny = x + dx, y + dy
+
+            if 0 <= nx < GRID_SIZE and 0 <= ny < GRID_SIZE and (nx,ny) not in visited:
+                x, y = nx, ny
+                path.append((x,y))
+                visited.add((x,y))
+                moved = True
+                break
+
+        if not moved:
+            # force move right if stuck
+            y += 1
+            path.append((x,y))
+            visited.add((x,y))
+
+    # ------------------------
+    # EMBED WORDS INTO PATH
+    # ------------------------
+    i = 0
     for word in words:
         for ch in word:
-            grid[x][y] = ch
-            path.append((x,y))
-
-            moves = [(1,0),(0,1),(-1,0),(0,-1)]
-            random.shuffle(moves)
-
-            for dx, dy in moves:
-                nx, ny = x+dx, y+dy
-                if 0 <= nx < GRID_SIZE and 0 <= ny < GRID_SIZE and (nx,ny) not in path:
-                    x, y = nx, ny
-                    break
+            if i < len(path):
+                px, py = path[i]
+                grid[px][py] = ch
+                i += 1
 
     return grid, path
 
@@ -72,7 +97,7 @@ def generate_branching_path(words):
 if "init" not in st.session_state or st.session_state.get("level") != level:
 
     words = get_words(level)
-    grid, path = generate_branching_path(words)
+    grid, path = generate_full_path(words)
 
     st.session_state.grid = grid
     st.session_state.path = path
