@@ -252,19 +252,19 @@ if st.session_state.get("show_intro", False):
         border-radius: 20px;
     }
 
-    @keyframes shrinkMove {
-        0% {
-            transform: translate(-50%, -50%) scale(1);
-            opacity: 1;
-        }
-        50% {
-            transform: translate(30vw, 10vh) scale(0.5);
-        }
-        100% {
-            transform: translate(45vw, 20vh) scale(0.1);
-            opacity: 0;
-        }
+    @keyframes moveToExit {
+    0% {
+        transform: translate(-50%, -50%) scale(1.5);
+        opacity: 1;
     }
+    70% {
+        transform: translate(Xvw, Yvh) scale(0.5);
+    }
+    100% {
+        transform: translate(Xvw, Yvh) scale(0.1);
+        opacity: 0;
+    }
+}
 
     </style>
 
