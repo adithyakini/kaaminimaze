@@ -240,91 +240,61 @@ else:
 # ------------------------
 # UI
 # ------------------------
+# ------------------------
+# CHUCKY INTRO (FIXED)
+# ------------------------
 if st.session_state.get("show_intro", False):
 
-    st.markdown("""
+    exit_row = st.session_state.exit[0]
+
+    # approximate position of exit gate
+    x_percent = 85
+    y_percent = 10 + (exit_row / GRID_SIZE) * 70
+
+    st.markdown(f"""
     <style>
 
-    .chucky-container {
+    .chucky-container {{
         position: fixed;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        animation: shrinkMove 4s forwards;
+        animation: moveToExit 4s forwards;
         z-index: 9999;
-    }
+        pointer-events: none;
+    }}
 
-    .chucky-container img {
-        width: 60vw;   /* BIG start */
-        max-width: 700px;
+    .chucky-container img {{
+        width: 70vw;
+        max-width: 800px;
         border-radius: 20px;
-    }
+    }}
 
-    @keyframes moveToExit {
-    0% {
-        transform: translate(-50%, -50%) scale(1.5);
-        opacity: 1;
-    }
-    70% {
-        transform: translate(Xvw, Yvh) scale(0.5);
-    }
-    100% {
-        transform: translate(Xvw, Yvh) scale(0.1);
-        opacity: 0;
-    }
-}
+    @keyframes moveToExit {{
+        0% {{
+            transform: translate(-50%, -50%) scale(1.8);
+            opacity: 0;
+        }}
+        10% {{
+            opacity: 1;
+        }}
+        60% {{
+            transform: translate({x_percent}vw, {y_percent}vh) scale(0.5);
+        }}
+        100% {{
+            transform: translate({x_percent}vw, {y_percent}vh) scale(0.1);
+            opacity: 0;
+        }}
+    }}
 
     </style>
 
     <div class="chucky-container">
-        st.markdown(f"""
-<style>
-
-.chucky-container {{
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    animation: moveToExit 4s forwards;
-    z-index: 9999;
-    pointer-events: none;
-}}
-
-.chucky-container img {{
-    width: 70vw;          /* BIG */
-    max-width: 800px;
-    border-radius: 20px;
-}}
-
-@keyframes moveToExit {{
-    0% {{
-        transform: translate(-50%, -50%) scale(1.5);
-        opacity: 0;
-    }}
-    10% {{
-        opacity: 1;
-    }}
-    70% {{
-        transform: translate({x_percent}vw, {y_percent}vh) scale(0.5);
-    }}
-    100% {{
-        transform: translate({x_percent}vw, {y_percent}vh) scale(0.1);
-        opacity: 0;
-    }}
-}}
-
-</style>
-
-<div class="chucky-container">
-    <img src="data:image/png;base64,{chucky_base64}">
-</div>
-""", unsafe_allow_html=True)
+        <img src="data:image/png;base64,{chucky_base64}">
     </div>
     """, unsafe_allow_html=True)
 
-    # stop interaction while animation plays
     st.stop()
-    
 with st.sidebar:
     st.title("🧠 How to Play")
 
