@@ -241,7 +241,7 @@ else:
 # UI
 # ------------------------
 # ------------------------
-# CINEMATIC CHUCKY INTRO
+# CINEMATIC CHUCKY INTRO (FIXED FLOW)
 # ------------------------
 if st.session_state.get("show_intro", False):
 
@@ -250,13 +250,11 @@ if st.session_state.get("show_intro", False):
     x_percent = 85
     y_percent = 10 + (exit_row / GRID_SIZE) * 70
 
-    # 🔊 thunder EXACTLY at start
     play_sound(THUNDER)
 
     st.markdown(f"""
     <style>
 
-    /* SCREEN SHAKE */
     @keyframes shake {{
         0% {{ transform: translate(0px, 0px); }}
         25% {{ transform: translate(5px, -5px); }}
@@ -265,11 +263,6 @@ if st.session_state.get("show_intro", False):
         100% {{ transform: translate(0px, 0px); }}
     }}
 
-    .shake {{
-        animation: shake 0.4s;
-    }}
-
-    /* APPLY SHAKE TO WHOLE APP */
     .stApp {{
         animation: shake 0.4s;
     }}
@@ -295,28 +288,19 @@ if st.session_state.get("show_intro", False):
             transform: translate(-50%, -50%) scale(0.2);
             opacity: 0;
         }}
-
-        /* 👹 JUMP SCARE (FAST ZOOM) */
         10% {{
             transform: translate(-50%, -50%) scale(2.5);
             opacity: 1;
         }}
-
         20% {{
             transform: translate(-50%, -50%) scale(1.8);
         }}
-
-        /* 🧘 settle before moving */
         40% {{
             transform: translate(-50%, -50%) scale(1.2);
         }}
-
-        /* 🚀 MOVE TO EXIT */
         75% {{
             transform: translate({x_percent}vw, {y_percent}vh) scale(0.4);
         }}
-
-        /* 👻 ENTER GATE */
         100% {{
             transform: translate({x_percent}vw, {y_percent}vh) scale(0.05);
             opacity: 0;
@@ -330,7 +314,11 @@ if st.session_state.get("show_intro", False):
     </div>
     """, unsafe_allow_html=True)
 
-    st.stop()
+    # ✅ WAIT → THEN CONTINUE GAME
+    time.sleep(4)
+
+    st.session_state.show_intro = False
+    st.rerun()
     
 with st.sidebar:
     st.title("🧠 How to Play")
@@ -556,10 +544,3 @@ if st.button("🔄 New Game"):
     st.session_state.leaderboard = leaderboard
 
     st.rerun()
-
-
-if st.session_state.get("show_intro", False):
-    time.sleep(4)
-    st.session_state.show_intro = False
-    st.rerun()
-    
