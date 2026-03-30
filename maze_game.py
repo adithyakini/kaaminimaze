@@ -234,7 +234,9 @@ if "init" not in st.session_state or st.session_state.get("level") != level:
 
     st.session_state.play_wrong = False
     st.session_state.play_win = False
-    st.session_state.play_heartbeat = False                
+    st.session_state.play_heartbeat = False
+    st.session_state.completed_words = set()
+    
 
 # leaderboard init
 if "leaderboard" not in st.session_state:
@@ -478,14 +480,23 @@ for i in range(GRID_SIZE):
                 if next_index < len(path) and (x,y) == path[next_index]:
                     st.session_state.index = next_index
                     st.session_state.letters_progress += 1
+                
                     if st.session_state.current_word_index < len(st.session_state.words):
                         current_word = st.session_state.words[st.session_state.current_word_index]
                     else:
                         current_word = ""
-                    if (st.session_state.current_word_index < len(st.session_state.words)
-                        and st.session_state.letters_progress >= len(current_word)):
-                            st.session_state.current_word_index += 1
-                            st.session_state.letters_progress = 0
+                
+                    # ✅ WORD COMPLETED
+                    if (
+                        st.session_state.current_word_index < len(st.session_state.words)
+                        and st.session_state.letters_progress >= len(current_word)
+                    ):
+                        # mark word complete
+                        st.session_state.completed_words.add(st.session_state.current_word_index)
+                
+                        st.session_state.current_word_index += 1
+                        st.session_state.letters_progress = 0
+                
                     st.rerun()
                 else:
                     st.session_state.lives -= 1
