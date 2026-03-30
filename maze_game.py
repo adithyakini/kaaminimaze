@@ -167,19 +167,20 @@ if "leaderboard" not in st.session_state:
 # ------------------------
 # CINEMATIC CHUCKY INTRO (NON-BLOCKING FIX)
 # ------------------------
+# ------------------------
+# CHUCKY INTRO (FINAL FIX)
+# ------------------------
 if "intro_start" not in st.session_state:
     st.session_state.intro_start = None
 
 if st.session_state.get("show_intro", False):
 
-    # start timer once
     if st.session_state.intro_start is None:
         st.session_state.intro_start = time.time()
         play_sound(THUNDER)
 
     elapsed_intro = time.time() - st.session_state.intro_start
 
-    # animation still playing
     if elapsed_intro < 4:
 
         exit_row = st.session_state.exit[0]
@@ -219,13 +220,12 @@ if st.session_state.get("show_intro", False):
         </div>
         """, unsafe_allow_html=True)
 
-        st.stop()  # 👈 safe here because reruns continue
+        # 🔁 Force rerun WITHOUT blocking UI
+        st.experimental_rerun()
 
     else:
-        # animation done → start game
         st.session_state.show_intro = False
         st.session_state.intro_start = None
-        st.rerun()
 
 # ------------------------
 # UI
