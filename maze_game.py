@@ -326,30 +326,58 @@ if st.session_state.get("show_intro", False):
     st.rerun()
     
 with st.sidebar:
+
+    st.title("📖 The Story")
+
+    st.markdown("""
+    👹 **Chucky has returned…**
+
+    Once again, Chucky is back causing chaos —  
+    scaring and hurting innocent children.
+
+    🌙 The town is in fear. No one dares to face him.
+
+    But not all hope is lost…
+
+    🦸‍♀️ **Avika, the Super Girl**, has stepped forward.
+
+    She knows the only way to stop Chucky is to  
+    perform a powerful **exorcism ritual**.
+
+    ⚡ But Chucky is hiding deep inside a **mystic maze** —  
+    filled with confusing letters and false paths.
+
+    🔤 To reach him, Avika must:
+    - Find the **correct path**
+    - Complete **hidden words**
+    - Avoid traps and dead ends
+
+    👻 Only then can she reach the exit gate…  
+    and **banish Chucky forever**.
+
+    ---
+    """)
+
     st.title("🧠 How to Play")
 
     st.markdown("""
-    **🧙 Objective**
-    - Enter through the gate
-    - Follow the hidden word path
-    - Reach the ghost 👻 and perform the exorcism
+    **🎯 Objective**
+    - Enter through the gate 🚪
+    - Follow the hidden path
+    - Reach Chucky 👻 and perform the exorcism
 
-    **🎯 Rules**
-    - Move step-by-step along the correct path
+    **🧩 Words**
     - Each step builds a word
     - Complete words to progress
+    - Hints show 2 letters
 
     **❤️ Lives**
     - You have 3 lives
     - Wrong tile = lose 1 life
 
-    **🧩 Words**
-    - Words are revealed gradually
-    - Complete current word to unlock next
-
     **🏁 Goal**
     - Reach the exit gate
-    - Perform the exorcism faster for leaderboard!
+    - Finish as fast as possible for leaderboard
     """)
     
 st.title("🧙 Om Bhool Bhulaiya Swaahaa")
