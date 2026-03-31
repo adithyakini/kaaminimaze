@@ -8,6 +8,7 @@ import json
 import os
 import base64
 
+
 def get_base64_image(path):
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
@@ -30,20 +31,18 @@ def save_leaderboard(data):
 # ------------------------
 # SOUND FUNCTION
 # ------------------------
-def play_sound(url):
-    st.markdown(f"""
-        <audio autoplay>
-        <source src="{url}" type="audio/mpeg">
-        </audio>
-    """, unsafe_allow_html=True)
-    
-THUNDER = "https://www.soundjay.com/nature/thunder-1.mp3"
-WRONG = "https://www.soundjay.com/button/beep-10.wav"
-WIN = "https://www.soundjay.com/misc/small-bell-ring-01a.mp3"
-HEARTBEAT = "https://www.soundjay.com/human/heartbeat-01a.mp3"
+def play_loop_sound_base64(path):
+    import base64
+    with open(path, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode()
 
-if random.random() < 0.05:  # 5% chance each rerun
-    play_sound(THUNDER)
+    st.markdown(f"""
+    <audio autoplay loop>
+        <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
+    </audio>
+    """, unsafe_allow_html=True)
+
+
     
 st.markdown("""
 <style>
@@ -224,9 +223,8 @@ if "init" not in st.session_state or st.session_state.get("level") != level:
     st.session_state.current_word_index = 0
     st.session_state.letters_progress = 0
 
-    st.session_state.play_wrong = False
-    st.session_state.play_win = False
-    st.session_state.play_heartbeat = False
+    st.session_state.chucky_active = True
+    st.session_state.chucky_sound_played = False
     st.session_state.completed_words = set()
     
 
@@ -381,7 +379,52 @@ with st.sidebar:
     """)
     
 st.title("🧙 Om Bhool Bhulaiya Swaahaa")
+if st.session_state.get("chucky_active", False):
 
+    # 🔊 play sound only once
+    if not st.session_state.get("chucky_sound_played", False):
+        play_loop_sound_base64("chucky_laugh.mp3")
+        st.session_state.chucky_sound_played = True
+
+    st.markdown(f"""
+    <style>
+
+    .floating-chucky {{
+        position: fixed;
+        top: 20%;
+        left: 70%;
+        z-index: 999;
+        pointer-events: none;
+        animation: floatMove 6s infinite ease-in-out,
+                   pulseSize 2s infinite ease-in-out;
+    }}
+
+    .floating-chucky img {{
+        width: 120px;
+    }}
+
+    /* FLOATING MOTION */
+    @keyframes floatMove {{
+        0% {{ transform: translate(0px, 0px); }}
+        25% {{ transform: translate(-40px, 30px); }}
+        50% {{ transform: translate(20px, 60px); }}
+        75% {{ transform: translate(-20px, 20px); }}
+        100% {{ transform: translate(0px, 0px); }}
+    }}
+
+    /* SIZE PULSE */
+    @keyframes pulseSize {{
+        0% {{ transform: scale(1); }}
+        50% {{ transform: scale(1.5); }}
+        100% {{ transform: scale(1); }}
+    }}
+
+    </style>
+
+    <div class="floating-chucky">
+        <img src="data:image/png;base64,{chucky_base64}">
+    </div>
+    """, unsafe_allow_html=True)
 st.write(f"⏱️ Time: {elapsed}s | ❤️ Lives: {st.session_state.lives}")
 current_idx = min(st.session_state.current_word_index, len(st.session_state.words) - 1)
 words = st.session_state.words
