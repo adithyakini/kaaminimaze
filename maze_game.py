@@ -469,13 +469,16 @@ for i, w in enumerate(words):
 
     # ✅ CURRENT WORD (progressive)
     elif i == current_idx:
-        revealed = ""
-        for j, ch in enumerate(w):
-            if j < letters_done:
-                revealed += ch + " "
-            else:
-                revealed += "_ "
-        display.append(f"👉 {revealed.strip()}")
+        hint = ["_"] * len(w)
+        # always reveal first letter
+        hint[0] = w[0]
+        # reveal one more letter (middle)
+        if len(w) > 2:
+            hint[len(w)//2] = w[len(w)//2]
+        # override with progress
+        for j in range(letters_done):
+            hint[j] = w[j]
+        display.append(f"👉 {' '.join(hint)}")
 
     # ✅ FUTURE WORDS (2-letter hint system)
     else:
