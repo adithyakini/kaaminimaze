@@ -8,12 +8,32 @@ import os
 import base64
 
 # ------------------------
-# UTIL
+# IMAGE
 # ------------------------
 def get_base64_image(path):
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
+chucky_base64 = get_base64_image("chucky.png")
+
+# ------------------------
+# LEADERBOARD
+# ------------------------
+LEADERBOARD_FILE = "leaderboard.json"
+
+def load_leaderboard():
+    if not os.path.exists(LEADERBOARD_FILE):
+        return []
+    with open(LEADERBOARD_FILE, "r") as f:
+        return json.load(f)
+
+def save_leaderboard(data):
+    with open(LEADERBOARD_FILE, "w") as f:
+        json.dump(data, f)
+
+# ------------------------
+# SOUND
+# ------------------------
 def play_autoplay_sound_base64(path):
     with open(path, "rb") as f:
         b64 = base64.b64encode(f.read()).decode()
@@ -23,8 +43,6 @@ def play_autoplay_sound_base64(path):
         <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
     </audio>
     """, unsafe_allow_html=True)
-
-chucky_base64 = get_base64_image("chucky.png")
 
 # ------------------------
 # STYLE
@@ -42,6 +60,9 @@ button[kind="secondary"] {
 button:hover {
     border: 1px solid #22c55e !important;
 }
+h1 {
+    text-shadow: 0 0 10px #60a5fa, 0 0 20px #60a5fa;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -53,42 +74,18 @@ client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 level = st.selectbox("Difficulty", ["easy","medium","hard"])
 
 # ------------------------
-# SIDEBAR
-# ------------------------
-with st.sidebar:
-    st.title("📖 The Story")
-    st.markdown("""
-    👹 Chucky is back causing chaos and hurting children.
-
-    🦸‍♀️ Avika must perform an exorcism.
-
-    ⚡ To reach him, she must solve word paths through a maze.
-
-    👻 Reach the exit and banish him forever.
-    """)
-
-    st.title("🧠 How to Play")
-    st.markdown("""
-    - Enter through the gate 🚪  
-    - Follow correct path  
-    - Complete words  
-    - Avoid wrong tiles  
-    - Reach the ghost 👻  
-    """)
-
-# ------------------------
 # WORDS
 # ------------------------
 def get_words(level):
     if level == "easy":
-        rule = "exactly 4 letter simple words"
+        rule = "exactly 4 letter very simple words"
     elif level == "medium":
         rule = "exactly 5 letter words"
     else:
-        rule = "6+ letter words"
+        rule = "6 or more letter words"
 
     prompt = f"""
-    Generate 10 words:
+    Generate 10 English words.
     - {rule}
     - common and easy
     - no duplicates
@@ -105,145 +102,172 @@ def get_words(level):
 # ------------------------
 # PATH
 # ------------------------
-def generate_path():
-    path, visited = [], set()
-    x,y = 0,0
+def generate_full_path():
+    path = []
+    visited = set()
+
+    x, y = 0, 0
     path.append((x,y))
     visited.add((x,y))
 
-    while y < GRID_SIZE-1:
+    while y < GRID_SIZE - 1:
         moves = [(1,0),(-1,0),(0,1)]
         random.shuffle(moves)
 
-        for dx,dy in moves:
-            nx,ny = x+dx,y+dy
-            if 0<=nx<GRID_SIZE and 0<=ny<GRID_SIZE and (nx,ny) not in visited:
-                x,y = nx,ny
+        moved = False
+
+        for dx, dy in moves:
+            nx, ny = x+dx, y+dy
+
+            if 0 <= nx < GRID_SIZE and 0 <= ny < GRID_SIZE and (nx,ny) not in visited:
+                x, y = nx, ny
                 path.append((x,y))
                 visited.add((x,y))
+                moved = True
                 break
-        else:
-            y+=1
+
+        if not moved:
+            y += 1
             path.append((x,y))
             visited.add((x,y))
 
     return path
 
-def embed(path, words):
+def generate_words_for_path(path_length, level):
+    words = []
+    while sum(len(w) for w in words) < path_length:
+        words += get_words(level)
+    return words
+
+def embed_words_in_grid(path, words):
     grid = [[random.choice(string.ascii_uppercase) for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
-    i=0
-    for w in words:
-        for ch in w:
-            if i>=len(path): return grid
-            x,y = path[i]
+
+    i = 0
+    for word in words:
+        for ch in word:
+            if i >= len(path):
+                return grid
+            x, y = path[i]
             grid[x][y] = ch
-            i+=1
+            i += 1
+
     return grid
 
 # ------------------------
 # INIT
 # ------------------------
-if "init" not in st.session_state or st.session_state.level != level:
+if "user_interacted" not in st.session_state:
+    st.session_state.user_interacted = False
 
-    path = generate_path()
-    words = get_words(level)
-    grid = embed(path, words)
+if "init" not in st.session_state or st.session_state.get("level") != level:
 
-    st.session_state.update({
-        "grid": grid,
-        "path": path,
-        "words": words,
-        "entry": path[0],
-        "exit": path[-1],
-        "index": -1,
-        "lives": 3,
-        "wrong_tiles": set(),
-        "start_time": time.time(),
-        "current_word_index": 0,
-        "letters_progress": 0,
-        "completed_words": set(),
-        "user_interacted": False,
-        "jump_done": False,
-        "level": level,
-        "init": True
-    })
+    path = generate_full_path()
+    words = generate_words_for_path(len(path), level)
+    grid = embed_words_in_grid(path, words)
+
+    st.session_state.grid = grid
+    st.session_state.path = path
+    st.session_state.words = words
+    st.session_state.level = level
+    st.session_state.entry = path[0]
+    st.session_state.exit = path[-1]
+    st.session_state.index = -1
+    st.session_state.lives = 3
+    st.session_state.wrong_tiles = set()
+    st.session_state.start_time = time.time()
+    st.session_state.finished = False
+    st.session_state.current_word_index = 0
+    st.session_state.letters_progress = 0
+    st.session_state.completed_words = set()
+    st.session_state.chucky_active = True
+    st.session_state.chucky_sound_played = False
+    st.session_state.init = True
 
 # ------------------------
-# JUMP SCARE
+# TIMER
 # ------------------------
-if not st.session_state.jump_done:
-    st.session_state.jump_done = True
-
-    st.markdown(f"""
-    <style>
-    .jump {{
-        position: fixed;
-        top:50%; left:50%;
-        transform:translate(-50%,-50%);
-        animation: jump 1s forwards;
-        z-index:1000;
-    }}
-    @keyframes jump {{
-        0% {{ transform: scale(0.2); opacity:0; }}
-        100% {{ transform: scale(2.5); opacity:1; }}
-    }}
-    </style>
-    <div class="jump">
-        <img src="data:image/png;base64,{chucky_base64}" width="400">
-    </div>
-    """, unsafe_allow_html=True)
+elapsed = int(time.time() - st.session_state.start_time)
 
 # ------------------------
 # UI
 # ------------------------
 st.title("🧙 Om Bhool Bhulaiya Swaahaa")
 
-elapsed = int(time.time() - st.session_state.start_time)
-st.write(f"⏱ {elapsed}s ❤️ {st.session_state.lives}")
-
 # ------------------------
-# CHUCKY NEAR EXIT
+# CHUCKY (SINGLE BLOCK ONLY)
 # ------------------------
-exit_row = st.session_state.exit[0]
-y_percent = 10 + (exit_row / GRID_SIZE) * 70
+if st.session_state.get("chucky_active", False):
 
-st.markdown(f"""
-<style>
-.chucky {{
-    position: fixed;
-    top: {y_percent}vh;
-    left: 92vw;
-    transform: translate(-50%, -50%);
-    animation: pulse 2s infinite;
-}}
-@keyframes pulse {{
-    0% {{ transform: translate(-50%, -50%) scale(1); }}
-    50% {{ transform: translate(-50%, -50%) scale(1.6); }}
-    100% {{ transform: translate(-50%, -50%) scale(1); }}
-}}
-</style>
-<div class="chucky">
-    <img src="data:image/png;base64,{chucky_base64}" width="100">
-</div>
-""", unsafe_allow_html=True)
+    exit_row = st.session_state.exit[0]
+    y_percent = 10 + (exit_row / GRID_SIZE) * 70
+
+    st.markdown(f"""
+    <style>
+    .chucky-exit {{
+        position: fixed;
+        top: {y_percent}vh;
+        left: 92vw;
+        transform: translate(-50%, -50%);
+        z-index: 999;
+        pointer-events: none;
+        animation: pulseSize 2s infinite ease-in-out,
+                   floatY 3s infinite ease-in-out;
+    }}
+
+    .chucky-exit img {{
+        width: 100px;
+    }}
+
+    @keyframes pulseSize {{
+        0% {{ transform: translate(-50%, -50%) scale(1); }}
+        50% {{ transform: translate(-50%, -50%) scale(1.6); }}
+        100% {{ transform: translate(-50%, -50%) scale(1); }}
+    }}
+
+    @keyframes floatY {{
+        0% {{ top: {y_percent}vh; }}
+        50% {{ top: {y_percent + 3}vh; }}
+        100% {{ top: {y_percent}vh; }}
+    }}
+    </style>
+
+    <div class="chucky-exit">
+        <img src="data:image/png;base64,{chucky_base64}">
+    </div>
+    """, unsafe_allow_html=True)
+
+st.write(f"⏱️ Time: {elapsed}s | ❤️ Lives: {st.session_state.lives}")
 
 # ------------------------
 # WORD DISPLAY
 # ------------------------
+current_idx = st.session_state.current_word_index
+letters_done = st.session_state.letters_progress
+words = st.session_state.words
+
 display = []
-for i,w in enumerate(st.session_state.words):
+
+for i, w in enumerate(words):
+
     if i in st.session_state.completed_words:
         display.append(w)
-    elif i == st.session_state.current_word_index:
-        revealed = "".join([c+" " if j < st.session_state.letters_progress else "_ " for j,c in enumerate(w)])
-        display.append("👉 "+revealed.strip())
+
+    elif i == current_idx:
+        revealed = ""
+        for j, ch in enumerate(w):
+            if j < letters_done:
+                revealed += ch + " "
+            else:
+                revealed += "_ "
+        display.append(f"👉 {revealed.strip()}")
+
     else:
-        hint = ["_"]*len(w)
-        hint[0]=w[0]
-        hint[len(w)//2]=w[len(w)//2]
+        hint = ["_"] * len(w)
+        hint[0] = w[0]
+        hint[len(w)//2] = w[len(w)//2]
         display.append(" ".join(hint))
 
-st.write(" → ".join(display))
+st.write("Words:", " → ".join(display))
 
 # ------------------------
 # GRID
@@ -253,56 +277,63 @@ path = st.session_state.path
 idx = st.session_state.index
 
 for i in range(GRID_SIZE):
-    cols = st.columns(GRID_SIZE+2)
+    cols = st.columns(GRID_SIZE + 2)
 
-    for j in range(GRID_SIZE+2):
+    for j in range(GRID_SIZE + 2):
 
-        if j==0:
-            cols[j].button("🚪🧙" if i==st.session_state.entry[0] and idx==-1 else "", key=f"{i}-e")
+        if j == 0:
+            cols[j].button("🚪🧙" if i==st.session_state.entry[0] and idx==-1 else "", key=f"{i}-entry")
             continue
 
-        if j==GRID_SIZE+1:
-            cols[j].button("👻🚪" if i==st.session_state.exit[0] else "", key=f"{i}-x")
+        if j == GRID_SIZE + 1:
+            cols[j].button("👻🚪" if i==st.session_state.exit[0] else "", key=f"{i}-exit")
             continue
 
-        x,y=i,j-1
+        x, y = i, j-1
         base = grid[x][y]
 
-        if idx>=0 and (x,y)==path[idx]:
-            label="🧙"
-        elif idx>0 and (x,y) in path[:idx]:
-            label=f"🟩{base}"
+        if idx >= 0 and (x,y) == path[idx]:
+            label = "🧙"
+
+        elif idx > 0 and (x,y) in path[:idx]:
+            label = f"🟩{base}"
+
         elif (x,y) in st.session_state.wrong_tiles:
-            label=f"🟥{base}"
+            label = f"🟥{base}🔴"
+
         else:
-            label=base
+            label = base
 
         if cols[j].button(label, key=f"{x}-{y}"):
 
             if not st.session_state.user_interacted:
-                st.session_state.user_interacted=True
+                st.session_state.user_interacted = True
                 play_autoplay_sound_base64("chucky_laugh.mp3")
 
-            if idx==-1:
-                if (x,y)==st.session_state.entry:
-                    st.session_state.index=0
+            if idx == -1:
+                if (x,y) == st.session_state.entry:
+                    st.session_state.index = 0
                     st.rerun()
+                else:
+                    st.session_state.lives -= 1
+                    st.session_state.wrong_tiles.add((x,y))
             else:
-                next_idx = idx+1
-                if next_idx < len(path) and (x,y)==path[next_idx]:
-                    st.session_state.index+=1
-                    st.session_state.letters_progress+=1
+                next_idx = idx + 1
 
-                    total=0
-                    for i,w in enumerate(st.session_state.words):
-                        total+=len(w)
-                        if st.session_state.index==total-1:
+                if next_idx < len(path) and (x,y) == path[next_idx]:
+                    st.session_state.index += 1
+                    st.session_state.letters_progress += 1
+
+                    total = 0
+                    for i, w in enumerate(st.session_state.words):
+                        total += len(w)
+                        if st.session_state.index == total - 1:
                             st.session_state.completed_words.add(i)
-                            st.session_state.current_word_index=i+1
-                            st.session_state.letters_progress=0
+                            st.session_state.current_word_index = i + 1
+                            st.session_state.letters_progress = 0
                             break
 
                     st.rerun()
                 else:
-                    st.session_state.lives-=1
+                    st.session_state.lives -= 1
                     st.session_state.wrong_tiles.add((x,y))
