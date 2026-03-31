@@ -197,6 +197,10 @@ def embed_words_in_grid(path, words):
 # ------------------------
 # INIT
 # ------------------------
+if "user_interacted" not in st.session_state:
+    st.session_state.user_interacted = False
+    st.session_state.user_interacted = True
+    
 if "init" not in st.session_state or st.session_state.get("level") != level:
 
     path = generate_full_path()
@@ -382,9 +386,14 @@ if st.session_state.get("chucky_active", False):
 
     # 🔊 play sound once
     if not st.session_state.get("chucky_sound_played", False):
-        play_loop_sound_base64("chucky_laugh.mp3")
-        st.session_state.chucky_sound_played = True
-
+        if (
+            st.session_state.get("chucky_active", False)
+            and st.session_state.get("user_interacted", False)
+            and not st.session_state.get("chucky_sound_played", False)
+        ):
+            play_loop_sound_base64("chucky_laugh.mp3")
+            st.session_state.chucky_sound_played = True
+            
     exit_row = st.session_state.exit[0]
 
     # map row → vertical position
@@ -535,7 +544,7 @@ for i in range(GRID_SIZE):
             label = base
 
         if cols[j].button(label, key=f"{x}-{y}"):
-
+            st.session_state.user_interacted = True
             if st.session_state.finished:
                 continue
 
